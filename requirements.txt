@@ -1,0 +1,14 @@
+python-dotenv
+requests
+playsound
+ffmpeg
+soundcard
+pydub
+ffmpeg-python
+numpy
+sounddevice
+soundfile
+python-vlc
+pyyaml
+pydub
+scipy
