@@ -21,10 +21,11 @@ radio:
   playlist: RMF_FM.pls
 
 degradation:
-    sample_rate: 32000 
-    filter_low: 200    
-    filter_high: 4000  
-    noise_level: 0.0001  
-    bit_depth: 16      
-    crackle: 0.0002       
-    distortion: 0.0002         
+  enabled: false
+  sample_rate: 32000 
+  filter_low: 200    
+  filter_high: 4000  
+  noise_level: 0.0001  
+  bit_depth: 16      
+  crackle: 0.0002       
+  distortion: 0.0002         

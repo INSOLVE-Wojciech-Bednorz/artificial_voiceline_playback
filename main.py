@@ -120,35 +120,32 @@ class VoiceSystem:
         path = AUDIO_DIR / filename
         if path.exists():
             try:
-                # Load and process audio
+                # Load audio
                 audio = AudioSegment.from_file(path)
-                audio = degrade_audio(audio, self.config)  # Apply quality degradation
                 
-                # Apply volume adjustment
+                # Apply degradation and compression only if enabled
+                if self.config['degradation'].get('enabled', True):
+                    audio = degrade_audio(audio, self.config)  # Apply degradation
+                    # Apply compression (part of degradation toggle)
+                    comp = self.config['voice']['compression']
+                    audio = audio.compress_dynamic_range(
+                        threshold=comp['threshold'],
+                        ratio=comp['ratio'],
+                        attack=comp['attack'],
+                        release=comp['release']
+                    )
+                
+                # Volume adjustment (always applied)
                 if self.config['voice']['volume'] != 1.0:
                     gain_db = 20 * math.log10(self.config['voice']['volume'])
                     audio = audio.apply_gain(gain_db)
                 
-                # Apply compression
-                comp = self.config['voice']['compression']
-                audio = audio.compress_dynamic_range(
-                    threshold=comp['threshold'],
-                    ratio=comp['ratio'],
-                    attack=comp['attack'],
-                    release=comp['release']
-                )
-                
-                # Smooth ducking
+                # Handle radio ducking
                 if self.radio_player:
                     self._fade_radio_volume(self.radio_volume, self.duck_volume)
-                
-                # Play processed audio
                 play(audio)
-                
-                # Smooth volume restoration
                 if self.radio_player:
                     self._fade_radio_volume(self.duck_volume, self.radio_volume)
-                    
             except Exception as e:
                 print(f"Playback error: {str(e)}")
                 traceback.print_exc()
@@ -163,7 +160,8 @@ class VoiceSystem:
                 for line in active_lines:
                     print(f"Playing: {line['text']}")
                     self.play_audio(line['filename'])
-                time.sleep(self.config['radio']['interval'])
+                    # Wait the interval after each line
+                    time.sleep(self.config['radio']['interval'])
         except KeyboardInterrupt:
             self.stop_radio()
 
@@ -235,7 +233,7 @@ def degrade_audio(audio_segment, config):
             frame_rate=frame_rate,
             channels=channels
         )
-
+    
     # 3. Nonlinear distortion
     if 'distortion' in config['degradation']:
         samples = np.array(degraded.get_array_of_samples(), dtype=np.float32)
