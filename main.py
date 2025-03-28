@@ -206,6 +206,7 @@ class VoiceSystem:
         # Display sections
         format_section([line for line in self.lines if not line['active']], "NIEAKTYWNE")
         format_section([line for line in self.lines if line['active']], "AKTYWNE")
+        print()
 
     def display_in_columns(self):
         term_width = shutil.get_terminal_size().columns
@@ -229,6 +230,7 @@ class VoiceSystem:
         print("\n" + "NIEAKTYWNE".center(col_width) + sep + "AKTYWNE".center(col_width))
         for left, right in zip_longest(left_lines, right_lines, fillvalue=""):
             print(f"{left.ljust(col_width)}{sep}{right.ljust(col_width)}")
+        print()
 
 
     def parse_id_ranges(self, input_str):
@@ -739,7 +741,7 @@ def main():
             elif choice == '3':
                 vs.display_in_columns()
                 try:
-                    ids = vs.parse_id_ranges(input("ID linii do usunięcia (np. 1,3-5): "))
+                    ids = vs.parse_id_ranges(input("ID do usunięcia (np. 1,3-5, lub słowo 'wszystkie'): "))
                     removed = vs.remove_lines(ids)
                     print(f"Usunięto {removed} linii.")
                 except KeyboardInterrupt:
@@ -748,10 +750,10 @@ def main():
             elif choice == '4':
                 vs.display_in_columns()
                 try:
-                    cmd = input("Komenda (np. 1,3-5, wszystkie): ")
-                    if cmd.lower() == 'włącz wszystkie':
+                    cmd = input("ID linii (np. 1, 3-5, 'wszystkie'), '--' (wyłącz wszystkie), '++' (włącz wszystkie): ")
+                    if cmd.lower() == '--':
                         count = vs.bulk_toggle(range(len(vs.lines)), True)
-                    elif cmd.lower() == 'wyłącz wszystkie':
+                    elif cmd.lower() == '++':
                         count = vs.bulk_toggle(range(len(vs.lines)), False)
                     else:
                         ids = vs.parse_id_ranges(cmd)
