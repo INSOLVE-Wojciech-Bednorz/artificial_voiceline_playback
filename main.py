@@ -531,10 +531,10 @@ def distortion_settings(vs):
         try:
             print("\nSymulacja zniekształceń:")
             print(f"1. Włączone: {'Tak' if vs.config['distortion_simulation']['enabled'] else 'Nie'}")
-            print(f"2. Częstotliwość próbkowania: {vs.config['distortion_simulation']['sample_rate']} Hz")
+            print(f"2. Częstotliwość próbkowania: {vs.config['distortion_simulation']['sample_rate']} (Hz)")
             print(f"3. Poziom zniekształceń: {vs.config['distortion_simulation']['distortion']}")
-            print(f"4. Filtr dolnoprzepustowy: {vs.config['distortion_simulation']['filter_high']} Hz")
-            print(f"5. Filtr górnoprzepustowy: {vs.config['distortion_simulation']['filter_low']} Hz")
+            print(f"4. Filtr dolnoprzepustowy: {vs.config['distortion_simulation']['filter_high']} (Hz)")
+            print(f"5. Filtr górnoprzepustowy: {vs.config['distortion_simulation']['filter_low']} (Hz)")
             print(f"6. Szumy: {vs.config['distortion_simulation']['noise_level']}")
             print(f"7. Redukcja bitów: {vs.config['distortion_simulation']['bit_depth']}-bit")
             print(f"8. Efekt trzasków: {vs.config['distortion_simulation']['crackle']}")
