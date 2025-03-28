@@ -3,11 +3,11 @@ api_key: sk_c3080639f3d803a0e690bbef0d8d85a238fab2e1e6b4a9fd
 voice:
   id: NacdHGUYR1k3M0FAbAia
   model: eleven_multilingual_v2
-  stability: 0.9
-  similarity: 1.0
-  style: 0.1
-  speed: 1.2
-  volume: 1.0
+  stability: 0.8
+  similarity: 0.9
+  style: 0.3
+  speed: 0.7
+  volume: 0.3
   compression:
     threshold: -20  # dB
     ratio: 4
@@ -15,9 +15,9 @@ voice:
     release: 50      # ms
 
 radio:
-  volume: 0.4
-  duck_volume: 0.1
-  interval: 300      # seconds
+  volume: 0.2
+  duck_volume: 0.0
+  interval: 30      # seconds
   playlist: RMF_FM.pls
 
 degradation:
