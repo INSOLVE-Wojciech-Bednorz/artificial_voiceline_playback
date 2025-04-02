@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 # Ensure the voice_system module can be found
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fastapi import FastAPI, HTTPException, Body, status, Depends, Query
+from fastapi import FastAPI, HTTPException, Body, status, Depends, Query, Path as F_path
 from fastapi.responses import JSONResponse
 from typing import List, Optional, Dict, Any
 
@@ -34,6 +34,16 @@ async def lifespan(app: FastAPI):
     logger.info("Shutting down Voice System API...")
     voice_system_instance.cleanup()
     logger.info("Cleanup complete.")
+
+def _get_nested_value(data: Dict, keys: List[str], default: Any) -> Any:
+    """Safely retrieve a nested value from a dictionary using a list of keys."""
+    current = data
+    for key in keys:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+        else:
+            return default
+    return current
 
 # --- FastAPI App Initialization ---
 app = FastAPI(
@@ -130,7 +140,7 @@ async def add_new_line(
     }
 )
 async def edit_existing_line(
-    line_id: int = Path(..., description="The ID of the line to edit.", ge=1),
+    line_id: int = F_path(..., description="The ID of the line to edit.", ge=1),
     request: models.EditLineRequest = Body(...),
     vs: VoiceSystem = Depends(get_voice_system)
 ):
@@ -475,4 +485,4 @@ if __name__ == "__main__":
     import uvicorn
     logger.info("Starting Uvicorn server for local development...")
     # Recommended command: uvicorn main:app --reload --host 0.0.0.0 --port 8000
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8060, reload=True)

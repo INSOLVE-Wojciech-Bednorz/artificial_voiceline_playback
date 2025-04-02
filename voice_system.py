@@ -58,7 +58,7 @@ DEFAULT_CONFIG = {
         }
     },
     'radio': {
-        'playlist': None, # Use None for no playlist
+        'playlist': None,
         'interval': 300
     },
     'distortion_simulation': { # Single source for these settings
@@ -1182,6 +1182,7 @@ class VoiceSystem:
                  # This ensures all required fields are present and types are correct
                  # Note: API key might be missing if not provided in update AND not in original default?
                  # Ensure API key validation handles the 'YOUR...HERE' placeholder?
+                 import models
                  models.AppSettings(**potential_new_config)
                  logger.debug("Potential new settings passed Pydantic validation.")
             except Exception as pydantic_error: # Catch Pydantic's ValidationError specifically if possible
