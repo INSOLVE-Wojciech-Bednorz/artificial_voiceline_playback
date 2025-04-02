@@ -9,55 +9,55 @@
     "id": 2,
     "text": "Promocja na jogurty naturalne Activia \u2013 4-pak za jedyne 5,49 z\u0142. Zdrowa przek\u0105ska w super cenie!",
     "filename": "line_2.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 3,
     "text": "Tylko teraz chleb pe\u0142noziarnisty Baltonowski w cenie 2,99 z\u0142 za bochenek. \u015awie\u017ce pieczywo codziennie!",
     "filename": "line_3.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 4,
     "text": "Uwaga! Mas\u0142o ekstra \u0141aciate 200g w promocyjnej cenie 6,49 z\u0142. Idealne do smarowania i pieczenia!",
     "filename": "line_4.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 5,
     "text": "Zapraszamy do dzia\u0142u owoc\u00f3w i warzyw! S\u0142odkie pomara\u0144cze w cenie 3,99 z\u0142 za kilogram. Doskona\u0142e na sok!",
     "filename": "line_5.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 6,
     "text": "Tylko dzi\u015b kawa mielona Tchibo Family 500g za jedyne 14,99 z\u0142. Aromatyczny pocz\u0105tek dnia!",
     "filename": "line_6.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 7,
     "text": "Promocja na p\u0142yn do mycia naczy\u0144 Ludwik 1L \u2013 teraz tylko 4,99 z\u0142. Skuteczno\u015b\u0107 w walce z t\u0142uszczem!",
     "filename": "line_7.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 8,
     "text": "Uwaga! Czekolada mleczna Wedel 100g w cenie 2,79 z\u0142. S\u0142odka przyjemno\u015b\u0107 dla ka\u017cdego!",
     "filename": "line_8.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 9,
     "text": "Tylko teraz ser \u017c\u00f3\u0142ty Gouda w plastrach 150g za 4,49 z\u0142. Idealny dodatek do kanapek!",
     "filename": "line_9.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 10,
     "text": "Zapraszamy do dzia\u0142u chemii gospodarczej! Proszek do prania Persil 2,6 kg w cenie 29,99 z\u0142. Czysto\u015b\u0107 i \u015bwie\u017co\u015b\u0107 ubra\u0144!",
     "filename": "line_10.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 11,
