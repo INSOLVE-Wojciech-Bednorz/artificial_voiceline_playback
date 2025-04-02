@@ -7,13 +7,13 @@ from contextlib import asynccontextmanager
 # Ensure the voice_system module can be found
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from fastapi import FastAPI, HTTPException, Body, status, Depends, Query, Path as F_path
+from fastapi import FastAPI, HTTPException, Body, status, Depends, Path as F_path
 from fastapi.responses import JSONResponse
-from typing import List, Optional, Dict, Any
+from typing import List, Dict, Any
 
 # Import models and the core voice system logic
 import models
-from voice_system import VoiceSystem, DEFAULT_CONFIG # Import default config too
+from voice_system import VoiceSystem, DEFAULT_CONFIG, _get_nested_value # Import default config too
 
 # --- Logging Setup ---
 # Use the logger configured in voice_system.py
@@ -35,15 +35,6 @@ async def lifespan(app: FastAPI):
     voice_system_instance.cleanup()
     logger.info("Cleanup complete.")
 
-def _get_nested_value(data: Dict, keys: List[str], default: Any) -> Any:
-    """Safely retrieve a nested value from a dictionary using a list of keys."""
-    current = data
-    for key in keys:
-        if isinstance(current, dict) and key in current:
-            current = current[key]
-        else:
-            return default
-    return current
 
 # --- FastAPI App Initialization ---
 app = FastAPI(

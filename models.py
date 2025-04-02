@@ -19,7 +19,7 @@ class VoiceLine(VoiceLineBase):
         json_schema_extra = {
             "example": {
                 "id": 42,
-                "text": "Attention: The facility will close in 15 minutes.",
+                "text": "Zapraszamy do dzia\u0142u owoc\u00f3w i warzyw! S\u0142odkie pomara\u0144cze w cenie 3,99 z\u0142 za kilogram. Doskona\u0142e na sok!",
                 "filename": "line_42.mp3",
                 "active": True
             }
