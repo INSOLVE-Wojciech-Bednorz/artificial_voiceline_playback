@@ -15,6 +15,9 @@ from typing import List, Dict, Any
 import models
 from voice_system import VoiceSystem, DEFAULT_CONFIG, _get_nested_value # Import default config too
 
+from fastapi.staticfiles import StaticFiles
+# Import StaticFiles to serve static content (CSS, JS, images) via HTTP endpoints in FastAPI
+
 # --- Logging Setup ---
 # Use the logger configured in voice_system.py
 logger = logging.getLogger("voice_system") # Or use __name__ for FastAPI specific logs
@@ -55,6 +58,9 @@ async def get_voice_system():
 # Optional: Catch Pydantic validation errors globally for consistent 422 response
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import PlainTextResponse
+
+app.mount("/audio", StaticFiles(directory=Path("audio_files")), name="audio")
+# Mount a static file server at the "/audio" endpoint, serving files from the "audio_files" directory
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request, exc):
@@ -469,6 +475,16 @@ async def read_root():
     """Basic health check endpoint."""
     return {"message": "Voice Line & Radio Manager API is running."}
 
+# --- Add CORS Support to FastAPI Backend---
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # React app's origin
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- Running the App (for local development) ---
 # Use `uvicorn main:app --reload` in the terminal
