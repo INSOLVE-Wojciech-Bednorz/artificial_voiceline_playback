@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAppContext } from '../lib/context/AppContext';
+import { useAppContext } from '../utils/context/AppContext'; 
 import EnhancedStatusIndicator from './ui/EnhancedStatusIndicator';
 
 // Define custom event type for detecting unsaved changes

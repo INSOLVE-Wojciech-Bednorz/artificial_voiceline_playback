@@ -1,13 +1,27 @@
 import React from 'react';
-import { useAppContext } from '../lib/context/AppContext';
+import { useAppContext } from '../utils/context/AppContext';
 
 const Scheduler: React.FC = () => {
   const { 
     schedulerActive,
     schedulerLoading,
     schedulerError,
-    toggleScheduler
+    toggleScheduler,
+    refreshSchedulerStatus
   } = useAppContext();
+  
+  // Function to handle button click with error recovery
+  const handleToggleScheduler = async () => {
+    try {
+      await toggleScheduler();
+    } catch (error) {
+      console.error("Failed to toggle scheduler:", error);
+      // Force a refresh after error to get current status
+      setTimeout(() => {
+        refreshSchedulerStatus();
+      }, 1000);
+    }
+  };
   
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4 flex flex-col mb-6">
@@ -29,7 +43,7 @@ const Scheduler: React.FC = () => {
       )}
       
       <button
-        onClick={toggleScheduler}
+        onClick={handleToggleScheduler}
         disabled={schedulerLoading}
         className={`mt-auto py-2 px-4 rounded-md text-sm font-medium text-white transition-colors ${
           schedulerLoading ? 'bg-gray-300 cursor-not-allowed' : 

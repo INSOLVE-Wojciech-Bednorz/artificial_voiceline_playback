@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../lib/api';
+import api from '../utils/api';
 
 interface BulkActionsProps {
   selectedIds: number[];

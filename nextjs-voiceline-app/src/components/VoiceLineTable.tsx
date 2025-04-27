@@ -1,5 +1,5 @@
 import React from 'react';
-import { VoiceLine } from '../lib/context/AppContext';
+import { VoiceLine } from '../utils/context/AppContext';
 import StatusBadge from './ui/StatusBadge';
 
 interface VoiceLineTableProps {

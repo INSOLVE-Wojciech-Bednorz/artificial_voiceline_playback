@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import api from '../lib/api';
+import api from '../utils/api';
 
 interface AddVoiceLineModalProps {
   isOpen: boolean;
@@ -29,7 +29,9 @@ const AddVoiceLineModal: React.FC<AddVoiceLineModalProps> = ({
     
     try {
       await api.post('/lines', { text });
+      // Call onVoiceLineAdded first to ensure refresh happens
       onVoiceLineAdded();
+      // Then close the modal
       handleClose();
     } catch (err: any) {
       console.error('Błąd podczas dodawania linii głosowej:', err);

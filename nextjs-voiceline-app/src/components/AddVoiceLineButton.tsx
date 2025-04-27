@@ -1,5 +1,5 @@
 import React, { useState, forwardRef, useImperativeHandle } from 'react';
-import api from '../lib/api';
+import api from '../utils/api';
 
 interface AddVoiceLineButtonProps {
   onVoiceLineAdded?: () => void;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppContext, VoiceLine } from '../lib/context/AppContext';
+import { useAppContext, VoiceLine } from '../utils/context/AppContext';
 import VoiceLineTable from './VoiceLineTable';
 import SearchAndFilterBar from './SearchAndFilterBar';
 import BulkActions from './BulkActions';

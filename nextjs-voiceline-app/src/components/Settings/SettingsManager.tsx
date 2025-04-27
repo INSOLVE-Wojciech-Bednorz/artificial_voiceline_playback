@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import api from '../../lib/api';
+import api from '../../utils/api';
 import VoiceSettings from './VoiceSettings';
 import VolumeSettings from './VolumeSettings';
-import RadioSettings from './RadioSettings';
+import SchedulerSettings from './SchedulerSettings';
 import Scheduler from '../Scheduler';
 
 // Define custom event type for unsaved changes
@@ -38,7 +38,11 @@ interface VolumeSettingsType {
 }
 
 interface RadioSettingsType {
-  playlist: string | null;
+  station_url: string; // Zmieniono wartość pole zgodnie z backendem
+  is_playing: boolean; // Dodano pole zgodnie z backendem
+}
+
+interface SchedulerSettingsType {
   interval: number;
 }
 
@@ -58,6 +62,7 @@ export interface AppSettings {
   voice: VoiceSettingsType;
   volumes: VolumeSettingsType;
   radio: RadioSettingsType;
+  scheduler: SchedulerSettingsType; // Dodano zgodnie z backendem
   distortion_simulation: DistortionSettings;
 }
 
@@ -239,6 +244,11 @@ const SettingsManager = () => {
       // Add radio settings if changed
       if (JSON.stringify(settings.radio) !== JSON.stringify(originalSettings?.radio)) {
         changedSettings.radio = settings.radio;
+      }
+      
+      // Add scheduler settings if changed
+      if (JSON.stringify(settings.scheduler) !== JSON.stringify(originalSettings?.scheduler)) {
+        changedSettings.scheduler = settings.scheduler;
       }
       
       // Skip distortion_simulation as per requirements
@@ -452,15 +462,15 @@ const SettingsManager = () => {
               />
             </div>
             {/* End Volume Settings Section */}
-
-            {/* Radio Settings Section */}
+            
+            {/* Scheduler Settings Section */}
             <div className="py-6 first:pt-0 last:pb-0 border-t first:border-transparent border-gray-200">
-              <RadioSettings 
-                settings={settings.radio}
-                onChange={(field, value) => handleNestedSettingsChange('radio', field, value)}
+              <SchedulerSettings 
+                settings={settings.scheduler}
+                onChange={(field, value) => handleNestedSettingsChange('scheduler', field, value)}
               />
             </div>
-            {/* End Radio Settings Section */}
+            {/* End Scheduler Settings Section */}
           </form>
 
           {/* Action Buttons - Only show when there are changes */}
