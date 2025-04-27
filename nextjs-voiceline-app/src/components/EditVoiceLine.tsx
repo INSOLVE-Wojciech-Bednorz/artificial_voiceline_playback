@@ -1,0 +1,200 @@
+import React, { useState, useEffect } from 'react';
+import api from '../lib/api';
+
+interface EditVoiceLineProps {
+  lineId: number;
+  currentText: string;
+  isActive: boolean;
+  isOpen: boolean;
+  onClose: () => void;
+  onVoiceLineUpdated: () => void;
+}
+
+const EditVoiceLine: React.FC<EditVoiceLineProps> = ({ 
+  lineId,
+  currentText,
+  isActive,
+  isOpen,
+  onClose,
+  onVoiceLineUpdated 
+}) => {
+  const [text, setText] = useState('');
+  const [active, setActive] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Set initial text and active state when component opens
+  useEffect(() => {
+    if (isOpen) {
+      setText(currentText);
+      setActive(isActive);
+      setError(null);
+    }
+  }, [isOpen, currentText, isActive]);
+
+  const handleCloseModal = () => {
+    onClose();
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!text.trim()) {
+      setError("Tekst nie może być pusty");
+      return;
+    }
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      await api.put(`/lines/${lineId}`, { new_text: text });
+      if (onVoiceLineUpdated) {
+        onVoiceLineUpdated();
+      }
+      handleCloseModal();
+    } catch (err: any) {
+      console.error('Błąd podczas aktualizacji linii głosowej:', err);
+      if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("Nie udało się zaktualizować linii głosowej. Spróbuj ponownie.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Handle toggling active state
+  const handleToggleActive = async () => {
+    setToggleLoading(true);
+    setError(null);
+    
+    try {
+      // Call API to toggle line active status
+      await api.post('/lines/toggle', {
+        ids: [lineId],
+        state: !active
+      });
+      
+      // Update local state
+      setActive(!active);
+      
+      // If callback provided, refresh parent component
+      if (onVoiceLineUpdated) {
+        onVoiceLineUpdated();
+      }
+    } catch (err: any) {
+      console.error('Błąd podczas zmiany statusu linii głosowej:', err);
+      if (err.response?.data?.detail) {
+        setError(err.response.data.detail);
+      } else {
+        setError("Nie udało się zmienić statusu linii. Spróbuj ponownie.");
+      }
+    } finally {
+      setToggleLoading(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-xl p-6 w-full max-w-md relative animate-fadeIn">
+        <button 
+          onClick={handleCloseModal}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          type="button"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+        
+        <h2 className="text-xl font-bold mb-4">Edytuj linię głosową #{lineId}</h2>
+        
+        {/* Status indicator and toggle button */}
+        <div className="flex items-center mb-6 gap-2">
+          <div className={`px-2 py-1 rounded-md text-xs font-medium ${
+            active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {active ? 'Aktywna' : 'Nieaktywna'}
+          </div>
+          
+          <button
+            type="button"
+            onClick={handleToggleActive}
+            disabled={toggleLoading}
+            className={`flex items-center text-xs px-3 py-1 rounded-md transition-colors ${
+              active 
+                ? 'bg-amber-500 hover:bg-amber-600 text-white' 
+                : 'bg-green-600 hover:bg-green-700 text-white'
+            }`}
+          >
+            {toggleLoading ? (
+              <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            ) : (
+              active ? 'Dezaktywuj' : 'Aktywuj'
+            )}
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <label htmlFor="voiceLineText" className="block text-sm font-medium text-gray-700 mb-1">
+              Tekst linii głosowej
+            </label>
+            <textarea
+              id="voiceLineText"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={4}
+              className="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Wprowadź nowy tekst dla linii głosowej..."
+              disabled={loading}
+            ></textarea>
+          </div>
+          
+          {error && (
+            <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+              {error}
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={handleCloseModal}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
+              disabled={loading}
+            >
+              Anuluj
+            </button>
+            <button
+              type="submit"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
+              disabled={loading}
+            >
+              {loading ? (
+                <div className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Aktualizacja...
+                </div>
+              ) : 'Zapisz zmiany'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default EditVoiceLine;
