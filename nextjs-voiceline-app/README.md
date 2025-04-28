@@ -1,51 +1,115 @@
+# Voiceline App - Frontend
 
-# Start app
+Aplikacja do zarządzania liniami głosowymi i odtwarzaniem radia.
 
-#### Install [node.js](https://nodejs.org/en)
-#### Start from
+## Wymagania systemowe
+
+- Node.js w wersji >= 18.17.0 (zalecana 20.x)
+- NPM (najnowsza wersja)
+- Dostęp do API backendu
+
+## Szybka instalacja
+
+### Dla systemów Linux/macOS:
+
 ```bash
-.\nextjs-voiceline-app
+chmod +x setup.sh
+./setup.sh
 ```
 
-```bash
-npm install
+### Dla systemów Windows:
+
+```cmd
+setup.bat
 ```
+
+## Ręczna instalacja
+
+1. Upewnij się, że masz prawidłową wersję Node.js:
+   ```bash
+   node -v
+   ```
+
+2. Wyczyść cache NPM:
+   ```bash
+   npm cache clean --force
+   ```
+
+3. Usuń istniejące foldery node_modules i pliki blokad:
+   ```bash
+   rm -rf node_modules
+   rm -f package-lock.json
+   ```
+
+4. Zainstaluj zależności:
+   ```bash
+   npm install
+   ```
+
+## Uruchomienie aplikacji
+
+### Standardowe uruchomienie (z Turbopack):
+
 ```bash
 npm run dev
 ```
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
-## Getting Started
-
-First, run the development server:
+### Alternatywne uruchomienie (bez Turbopack - użyj jeśli masz problemy):
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev:stable
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Rozwiązywanie problemów
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Problemy z hydracją (React Hydration Error)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Jeśli widzisz błąd "Hydration failed because the server rendered HTML didn't match the client":
 
-## Learn More
+1. **Usuń folder .next** aby wyczyścić cache:
+   ```bash
+   rm -rf .next
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+2. **Uruchom aplikację bez Turbopack**:
+   ```bash
+   npm run dev:stable
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+3. **Sprawdź dostęp do API**:
+   - Upewnij się, że backend jest uruchomiony
+   - Sprawdź plik `src/utils/api.ts` czy adres API jest poprawny
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Problemy z Node.js**:
+   - Upewnij się, że używasz Node.js w wersji 18.17.0 lub wyższej
+   - Starsze wersje mogą nie być kompatybilne z React 19 i Next.js 15
 
-## Deploy on Vercel
+5. **Problemy z zależnościami**:
+   - Spróbuj użyć innego menedżera pakietów:
+     ```bash
+     # Używając npm
+     npm install
+     
+     # Używając yarn
+     yarn
+     
+     # Używając pnpm
+     pnpm install
+     ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Inne problemy
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Wolny system plików**: Jeśli widzisz komunikat "Slow filesystem detected", upewnij się, że projekt nie znajduje się na dysku sieciowym.
+- **Błędy kompilacji**: Użyj `npm run lint` aby znaleźć problemy w kodzie.
+- **Błędy Network**: Upewnij się, że firewall nie blokuje dostępu do API.
+
+## Struktura projektu
+
+- `src/app` - Strony Next.js i konfiguracja routingu
+- `src/components` - Komponenty React
+- `src/utils` - Narzędzia i kontekst aplikacji
+- `public` - Statyczne pliki
+
+## Kontakt
+
+Jeśli masz problemy z konfiguracją, skontaktuj się z administratorem projektu.
