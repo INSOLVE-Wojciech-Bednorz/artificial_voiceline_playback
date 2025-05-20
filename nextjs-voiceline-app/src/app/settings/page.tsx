@@ -19,10 +19,9 @@ const SettingsContent = () => {
   }, [refreshRadioStatus]);
   
   return (
-    <main>
+    <main className="h-full overflow-hidden">
       <div className="animated-gradient-bg"></div>
-      <div className="content-container px-4 py-6 max-w-5xl mx-auto">
-        <h1 className="text-2xl font-bold mb-6">Settings</h1>
+      <div className="h-full">
         <SettingsManager />
       </div>
     </main>

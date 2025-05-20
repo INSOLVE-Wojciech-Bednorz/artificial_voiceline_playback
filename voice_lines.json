@@ -1,128 +1,128 @@
 [
   {
     "id": 1,
-    "text": "Uwaga klienci! Tylko dzi\u015b \u015bwie\u017ce filety z kurczaka w cenie 12,99 z\u0142 za kilogram. Zapraszamy do dzia\u0142u mi\u0119snego!",
+    "text": "Uwaga klienci! Tylko dziś świeże filety z kurczaka w cenie 12,99 zł za kilogram. Zapraszamy do działu mięsnego!",
     "filename": "line_1.mp3",
     "active": false
   },
   {
     "id": 2,
-    "text": "Promocja na jogurty naturalne Activia \u2013 4-pak za jedyne 5,49 z\u0142. Zdrowa przek\u0105ska w super cenie!",
+    "text": "Promocja na jogurty naturalne Activia – 4-pak za jedyne 5,49 zł. Zdrowa przekąska w super cenie!",
     "filename": "line_2.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 3,
-    "text": "Tylko teraz chleb pe\u0142noziarnisty Baltonowski w cenie 2,99 z\u0142 za bochenek. \u015awie\u017ce pieczywo codziennie!",
+    "text": "Tylko teraz chleb pełnoziarnisty Baltonowski w cenie 2,99 zł za bochenek. Świeże pieczywo codziennie!",
     "filename": "line_3.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 4,
-    "text": "Uwaga! Mas\u0142o ekstra \u0141aciate 200g w promocyjnej cenie 6,49 z\u0142. Idealne do smarowania i pieczenia!",
+    "text": "Uwaga! Masło ekstra Łaciate 200g w promocyjnej cenie 6,49 zł. Idealne do smarowania i pieczenia!",
     "filename": "line_4.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 5,
-    "text": "Zapraszamy do dzia\u0142u owoc\u00f3w i warzyw! S\u0142odkie pomara\u0144cze w cenie 3,99 z\u0142 za kilogram. Doskona\u0142e na sok!",
+    "text": "Zapraszamy do działu owoców i warzyw! Słodkie pomarańcze w cenie 3,99 zł za kilogram. Doskonałe na sok!",
     "filename": "line_5.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 6,
-    "text": "Tylko dzi\u015b kawa mielona Tchibo Family 500g za jedyne 14,99 z\u0142. Aromatyczny pocz\u0105tek dnia!",
-    "filename": "line_6.mp3",
-    "active": true
+    "text": "Tylko dziś kawa mielona Tchibo Family 500g za jedyne 14,99 zł. Aromatyczny początek dnia!",
+    "filename": "line_22.mp3",
+    "active": false
   },
   {
     "id": 7,
-    "text": "Promocja na p\u0142yn do mycia naczy\u0144 Ludwik 1L \u2013 teraz tylko 4,99 z\u0142. Skuteczno\u015b\u0107 w walce z t\u0142uszczem!",
+    "text": "Promocja na płyn do mycia naczyń Ludwik 1L – teraz tylko 4,99 zł. Skuteczność w walce z tłuszczem!",
     "filename": "line_7.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 8,
-    "text": "Uwaga! Czekolada mleczna Wedel 100g w cenie 2,79 z\u0142. S\u0142odka przyjemno\u015b\u0107 dla ka\u017cdego!",
+    "text": "Uwaga! Czekolada mleczna Wedel 100g w cenie 2,79 zł. Słodka przyjemność dla każdego!",
     "filename": "line_8.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 9,
-    "text": "Tylko teraz ser \u017c\u00f3\u0142ty Gouda w plastrach 150g za 4,49 z\u0142. Idealny dodatek do kanapek!",
+    "text": "Tylko teraz ser żółty Gouda w plastrach 150g za 4,49 zł. Idealny dodatek do kanapek!",
     "filename": "line_9.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 10,
-    "text": "Zapraszamy do dzia\u0142u chemii gospodarczej! Proszek do prania Persil 2,6 kg w cenie 29,99 z\u0142. Czysto\u015b\u0107 i \u015bwie\u017co\u015b\u0107 ubra\u0144!",
+    "text": "Zapraszamy do działu chemii gospodarczej! Proszek do prania Persil 2,6 kg w cenie 29,99 zł. Czystość i świeżość ubrań!",
     "filename": "line_10.mp3",
-    "active": true
+    "active": false
   },
   {
     "id": 11,
-    "text": "Promocja na makaron Lubella \u015bwiderki 500g \u2013 teraz tylko 2,49 z\u0142. Doskona\u0142y do ulubionych da\u0144!",
+    "text": "Promocja na makaron Lubella świderki 500g – teraz tylko 2,49 zł. Doskonały do ulubionych dań!",
     "filename": "line_11.mp3",
     "active": false
   },
   {
     "id": 12,
-    "text": "Uwaga klienci! Sok pomara\u0144czowy Tymbark 1L w cenie 3,49 z\u0142. Orze\u017awienie na ka\u017cdy dzie\u0144!",
+    "text": "Uwaga klienci! Sok pomarańczowy Tymbark 1L w cenie 3,49 zł. Orzeźwienie na każdy dzień!",
     "filename": "line_12.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 13,
-    "text": "Tylko dzi\u015b szampon Head & Shoulders 400ml za jedyne 12,99 z\u0142. Skuteczna piel\u0119gnacja w\u0142os\u00f3w!",
+    "text": "Tylko dziś szampon Head & Shoulders 400ml za jedyne 12,99 zł. Skuteczna pielęgnacja włosów!",
     "filename": "line_13.mp3",
     "active": false
   },
   {
     "id": 14,
-    "text": "Zapraszamy do dzia\u0142u mi\u0119snego! Kie\u0142basa \u015bl\u0105ska w cenie 16,99 z\u0142 za kilogram. Tradycyjny smak na Twoim stole!",
+    "text": "Zapraszamy do działu mięsnego! Kiełbasa śląska w cenie 16,99 zł za kilogram. Tradycyjny smak na Twoim stole!",
     "filename": "line_14.mp3",
     "active": false
   },
   {
     "id": 15,
-    "text": "Promocja na papier toaletowy Velvet 8 rolek \u2013 teraz tylko 9,99 z\u0142. Mi\u0119kko\u015b\u0107 i komfort ka\u017cdego dnia!",
+    "text": "Promocja na papier toaletowy Velvet 8 rolek – teraz tylko 9,99 zł. Miękkość i komfort każdego dnia!",
     "filename": "line_15.mp3",
     "active": false
   },
   {
     "id": 16,
-    "text": "Uwaga! Mleko UHT Mlekovita 1L w cenie 2,49 z\u0142. Podstawowy produkt w ka\u017cdej kuchni!",
+    "text": "Uwaga! Mleko UHT Mlekovita 1L w cenie 2,49 zł. Podstawowy produkt w każdej kuchni!",
     "filename": "line_16.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 17,
-    "text": "Tylko teraz ry\u017c bia\u0142y Sonko 1 kg za 3,99 z\u0142. Idealny dodatek do obiadu!",
+    "text": "Tylko teraz ryż biały Sonko 1 kg za 3,99 zł. Idealny dodatek do obiadu!",
     "filename": "line_17.mp3",
     "active": false
   },
   {
     "id": 18,
-    "text": "Zapraszamy do dzia\u0142u s\u0142odyczy! Ciastka Delicje Szampa\u0144skie 147g w cenie 3,79 z\u0142. S\u0142odka chwila relaksu!",
+    "text": "Zapraszamy do działu słodyczy! Ciastka Delicje Szampańskie 147g w cenie 3,79 zł. Słodka chwila relaksu!",
     "filename": "line_18.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 19,
-    "text": "Promocja na olej rzepakowy Kujawski 1L \u2013 teraz tylko 6,49 z\u0142. Niezb\u0119dny w ka\u017cdej kuchni!",
+    "text": "Promocja na olej rzepakowy Kujawski 1L – teraz tylko 6,49 zł. Niezbędny w każdej kuchni!",
     "filename": "line_19.mp3",
-    "active": false
+    "active": true
   },
   {
     "id": 20,
-    "text": "Uwaga klienci! Herbata ekspresowa Lipton Yellow Label 100 torebek w cenie 12,99 z\u0142. Aromatyczna przerwa na herbat\u0119!",
+    "text": "Uwaga klienci! Herbata ekspresowa Lipton Yellow Label 100 torebek w cenie 12,99 zł. Aromatyczna przerwa na herbatę!",
     "filename": "line_20.mp3",
     "active": false
   },
   {
     "id": 21,
-    "text": "Paluszki dobrej firmy polecam tylko 9.99z\u0142/kg. tanio.",
+    "text": "Paluszki dobrej firmy polecam tylko 9.99zł/kg. tanio.",
     "filename": "line_21.mp3",
-    "active": true
+    "active": false
   }
 ]

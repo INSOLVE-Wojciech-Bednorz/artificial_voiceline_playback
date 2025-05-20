@@ -9,6 +9,9 @@ interface VoiceLineTableProps {
   onSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onToggleSelect: (lineId: number, e: React.ChangeEvent<HTMLInputElement>) => void;
   onEdit: (lineId: number) => void;
+  sortField?: 'id';
+  sortDirection?: 'asc' | 'desc';
+  onSort?: (field: 'id') => void;
 }
 
 const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
@@ -17,7 +20,10 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
   selectAll,
   onSelectAll,
   onToggleSelect,
-  onEdit
+  onEdit,
+  sortField = 'id',
+  sortDirection = 'desc',
+  onSort
 }) => {
   if (lines.length === 0) {
     return (
@@ -33,6 +39,25 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
       </div>
     );
   }
+
+  // Function to render sort indicator
+  const renderSortIndicator = (field: 'id') => {
+    if (sortField !== field) return null;
+    
+    return (
+      <span className="ml-1">
+        {sortDirection === 'asc' ? (
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="inline" viewBox="0 0 16 16">
+            <path d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708l6-6z"/>
+          </svg>
+        ) : (
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="inline" viewBox="0 0 16 16">
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l6-6a.5.5 0 0 0-.708-.708L8 10.793 2.354 5.146a.5.5 0 1 0-.708.708l6 6z"/>
+          </svg>
+        )}
+      </span>
+    );
+  };
 
   return (
     <table className="min-w-full divide-y divide-gray-200">
@@ -51,10 +76,14 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
             </label>
           </th>
 
-          <th scope="col" className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 text-start">
+          <th 
+            scope="col" 
+            className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 text-start cursor-pointer"
+            onClick={() => onSort && onSort('id')}
+          >
             <div className="flex items-center gap-x-2">
               <span className="text-xs font-semibold uppercase text-gray-800">
-                ID
+                ID {renderSortIndicator('id')}
               </span>
             </div>
           </th>

@@ -11,6 +11,7 @@ module.exports = {
         borderGlowGreen: "borderGlowGreen 2s ease-in-out infinite",
         borderGlowRed: "borderGlowRed 2s ease-in-out infinite",
         fadeIn: "fadeIn 0.3s ease-in-out",
+        "fade-in": "fadeIn 0.2s ease-in-out",
       },
       keyframes: {
         borderGlowGreen: {
@@ -42,8 +43,8 @@ module.exports = {
           }
         },
         fadeIn: {
-          '0%': { opacity: 0 },
-          '100%': { opacity: 1 }
+          '0%': { opacity: 0, transform: 'scale(0.95)' },
+          '100%': { opacity: 1, transform: 'scale(1)' }
         }
       },
     },

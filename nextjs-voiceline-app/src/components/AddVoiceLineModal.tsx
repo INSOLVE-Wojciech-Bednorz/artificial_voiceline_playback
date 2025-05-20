@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import api from '../utils/api';
+import ApiErrorHandler from './ui/ApiErrorHandler';
+import { formatApiError } from '../utils/errorUtils';
 
 interface AddVoiceLineModalProps {
   isOpen: boolean;
@@ -35,11 +37,8 @@ const AddVoiceLineModal: React.FC<AddVoiceLineModalProps> = ({
       handleClose();
     } catch (err: any) {
       console.error('Błąd podczas dodawania linii głosowej:', err);
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("Nie udało się dodać linii głosowej. Spróbuj ponownie.");
-      }
+      // Use centralized error formatting
+      setError(formatApiError(err));
     } finally {
       setLoading(false);
     }
@@ -86,9 +85,10 @@ const AddVoiceLineModal: React.FC<AddVoiceLineModalProps> = ({
           </div>
           
           {error && (
-            <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-              {error}
-            </div>
+            <ApiErrorHandler 
+              error={error} 
+              onDismiss={() => setError(null)} 
+            />
           )}
           
           <div className="flex justify-end gap-2">

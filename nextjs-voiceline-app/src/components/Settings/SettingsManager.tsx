@@ -1,10 +1,24 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Fragment } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '../../utils/api';
+import { useConnectionContext } from '../../utils/context/ConnectionContext';
 import VoiceSettings from './VoiceSettings';
 import VolumeSettings from './VolumeSettings';
 import SchedulerSettings from './SchedulerSettings';
 import Scheduler from '../Scheduler';
+import ConnectionErrorState from '../ui/ConnectionErrorState';
+import { Tab } from '@headlessui/react';
+import {
+  AdjustmentsHorizontalIcon,
+  SpeakerWaveIcon,
+  MicrophoneIcon,
+  CalendarDaysIcon,
+  KeyIcon,
+  CheckIcon,
+  ExclamationTriangleIcon,
+  ArrowPathIcon,
+  XMarkIcon
+} from '@heroicons/react/24/outline';
 
 // Define custom event type for unsaved changes
 interface CheckUnsavedChangesEvent {
@@ -77,6 +91,10 @@ const SettingsManager = () => {
   const [hasChanges, setHasChanges] = useState<boolean>(false);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+  const [selectedTab, setSelectedTab] = useState(0);
+  
+  // Access connection status
+  const { isConnected, isChecking, retryConnection } = useConnectionContext();
   
   // Zamiast używać mapy z tablicami callbacków, przechowujmy tylko jeden aktywny callback
   const pendingCallback = React.useRef<((canProceed: boolean) => void) | null>(null);
@@ -87,8 +105,18 @@ const SettingsManager = () => {
       try {
         setIsLoading(true);
         const response = await api.get('/settings');
-        setSettings(response.data);
-        setOriginalSettings(response.data);
+        
+        // Transform API data to match our frontend structure
+        // Create scheduler section with interval from radio section
+        const transformedData = {
+          ...response.data,
+          scheduler: {
+            interval: response.data.radio?.interval || 60
+          }
+        };
+        
+        setSettings(transformedData);
+        setOriginalSettings(transformedData);
         setError(null);
       } catch (err: any) {
         console.error('Error fetching settings:', err);
@@ -246,9 +274,12 @@ const SettingsManager = () => {
         changedSettings.radio = settings.radio;
       }
       
-      // Add scheduler settings if changed
-      if (JSON.stringify(settings.scheduler) !== JSON.stringify(originalSettings?.scheduler)) {
-        changedSettings.scheduler = settings.scheduler;
+      // Add the interval setting to the radio section instead of a separate scheduler section
+      if (settings.scheduler?.interval !== originalSettings?.scheduler?.interval) {
+        if (!changedSettings.radio) {
+          changedSettings.radio = { ...settings.radio };
+        }
+        changedSettings.radio.interval = settings.scheduler.interval;
       }
       
       // Skip distortion_simulation as per requirements
@@ -256,8 +287,17 @@ const SettingsManager = () => {
       // Send update if there are changes
       if (Object.keys(changedSettings).length > 0) {
         const response = await api.put('/settings', changedSettings);
-        setSettings(response.data);
-        setOriginalSettings(response.data);
+        
+        // Transform the response to include scheduler data
+        const transformedResponse = {
+          ...response.data,
+          scheduler: {
+            interval: response.data.radio?.interval || 60
+          }
+        };
+        
+        setSettings(transformedResponse);
+        setOriginalSettings(transformedResponse);
         setHasChanges(false);
         setSaveMessage({
           type: 'success',
@@ -387,185 +427,514 @@ const SettingsManager = () => {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center p-8">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="flex h-full w-full justify-center items-center">
+        <div className="flex flex-col items-center bg-white/60 backdrop-blur-sm p-8 rounded-xl shadow-sm">
+          <ArrowPathIcon className="h-10 w-10 text-blue-500 animate-spin" />
+          <p className="mt-4 text-gray-600 font-medium">Ładowanie ustawień...</p>
+        </div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
-        <strong className="font-bold">Error: </strong>
-        <span className="block sm:inline">{error}</span>
+      <div className="flex h-full w-full justify-center items-center">
+        <div className="bg-red-50/90 backdrop-blur-sm border border-red-200/80 rounded-lg p-6 max-w-md shadow-sm">
+          <div className="flex items-center mb-4">
+            <ExclamationTriangleIcon className="h-6 w-6 text-red-500 mr-2" />
+            <h3 className="font-semibold text-red-700">Błąd</h3>
+          </div>
+          <p className="text-red-600">{error}</p>
+        </div>
       </div>
     );
   }
 
-  if (!settings) {
-    return null;
+  // Show backend connection error state
+  if (!isConnected && !isChecking) {
+    return (
+      <div className="h-full flex flex-col">
+        <ConnectionErrorState 
+          onRetry={async () => {
+            const connected = await retryConnection();
+            if (connected) {
+              // Retry loading settings
+              setIsLoading(true);
+              try {
+                const response = await api.get('/settings');
+                const transformedData = {
+                  ...response.data,
+                  scheduler: {
+                    interval: response.data.radio?.interval || 60
+                  }
+                };
+                setSettings(transformedData);
+                setOriginalSettings(transformedData);
+                setError(null);
+              } catch (err: any) {
+                console.error('Error fetching settings:', err);
+                setError(err.response?.data?.detail || 'Failed to load settings');
+              } finally {
+                setIsLoading(false);
+              }
+            }
+          }}
+        />
+      </div>
+    );
+  }
+  
+  // Show loading state
+  if (isLoading || !settings) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Ładowanie ustawień...</p>
+        </div>
+      </div>
+    );
+  }
+  
+  // Show other error state
+  if (error) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-center max-w-md p-6 bg-red-50 rounded-lg border border-red-200">
+          <ExclamationTriangleIcon className="h-12 w-12 text-red-500 mx-auto" />
+          <h3 className="text-lg font-medium text-red-800 mt-3">Błąd ładowania ustawień</h3>
+          <p className="text-gray-700 mt-2">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
+          >
+            Odśwież stronę
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <>
-      {/* Card Section */}
-      <div className="max-w-5xl px-4 py-10 sm:px-6 lg:px-8 lg:py-14 mx-auto">
-        {/* Scheduler Control Card */}
-        <div className="bg-white rounded-xl shadow-xs p-4 sm:p-7 mb-8">
-          <Scheduler />
+    <div className="h-full flex flex-col">
+      {/* Fixed position notification banner that doesn't push content down */}
+      {hasChanges && (
+        <div className="fixed top-16 inset-x-0 z-40 pointer-events-none flex justify-center">
+          <div className="bg-white/90 backdrop-blur-md shadow-lg rounded-lg border border-blue-100/80 pointer-events-auto px-4 py-3 max-w-xl w-full mx-4 flex items-center justify-between settings-appear">
+            <div className="flex items-center">
+              <div className="w-2 h-2 bg-blue-600 rounded-full animate-pulse mr-3"></div>
+              <p className="font-medium text-blue-700">Masz niezapisane zmiany</p>
+            </div>
+            <div className="flex gap-x-2">                <button
+                  onClick={handleCancelChanges}
+                  className="py-1.5 px-3 text-sm font-medium rounded-lg border border-gray-200/70 bg-white/80 backdrop-blur-sm text-gray-700 hover:bg-gray-50/90 transition-all shadow-sm"
+                  disabled={isSaving}
+                >
+                  <div className="flex items-center space-x-1">
+                    <XMarkIcon className="h-4 w-4" />
+                    <span>Anuluj</span>
+                  </div>
+                </button>
+                <button
+                  onClick={handleSaveSettings}
+                  className="py-1.5 px-3 text-sm font-medium rounded-lg border border-transparent bg-blue-600/90 text-white hover:bg-blue-700 transition-all shadow-sm"
+                  disabled={isSaving}
+                >
+                <div className="flex items-center space-x-1">
+                  {isSaving ? (
+                    <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckIcon className="h-4 w-4" />
+                  )}
+                  <span>{isSaving ? 'Zapisywanie...' : 'Zapisz zmiany'}</span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings layout with improved design */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+        {/* Left sidebar with improved styling */}
+        <div className="lg:w-72 bg-white/80 backdrop-blur-sm lg:flex lg:flex-col lg:border-r lg:border-gray-200/70 lg:shadow-sm">
+          <div className="p-6">
+            <h1 className="text-2xl font-semibold text-gray-900">Ustawienia</h1>
+            <p className="text-sm text-gray-500 mt-1">Zarządzaj ustawieniami systemu</p>
+          </div>
+
+          {/* Tab navigation with improved visuals */}
+          <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab} vertical>
+            <Tab.List className="flex flex-col space-y-1 px-4 pb-6">
+              <Tab as={Fragment}>
+                {({ selected }) => (
+                  <button
+                    className={`
+                      ${selected ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' : 'text-gray-600 hover:bg-gray-50 border-l-4 border-l-transparent'}
+                      group flex items-center w-full px-3 py-3 text-sm font-medium transition-all
+                    `}
+                  >
+                    <CalendarDaysIcon className={`h-5 w-5 mr-3 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                    Harmonogram
+                  </button>
+                )}
+              </Tab>
+              <Tab as={Fragment}>
+                {({ selected }) => (
+                  <button
+                    className={`
+                      ${selected ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' : 'text-gray-600 hover:bg-gray-50 border-l-4 border-l-transparent'}
+                      group flex items-center w-full px-3 py-3 text-sm font-medium transition-all
+                    `}
+                  >
+                    <KeyIcon className={`h-5 w-5 mr-3 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                    API Key
+                  </button>
+                )}
+              </Tab>
+              <Tab as={Fragment}>
+                {({ selected }) => (
+                  <button
+                    className={`
+                      ${selected ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' : 'text-gray-600 hover:bg-gray-50 border-l-4 border-l-transparent'}
+                      group flex items-center w-full px-3 py-3 text-sm font-medium transition-all
+                    `}
+                  >
+                    <MicrophoneIcon className={`h-5 w-5 mr-3 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                    Głos
+                  </button>
+                )}
+              </Tab>
+              <Tab as={Fragment}>
+                {({ selected }) => (
+                  <button
+                    className={`
+                      ${selected ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' : 'text-gray-600 hover:bg-gray-50 border-l-4 border-l-transparent'}
+                      group flex items-center w-full px-3 py-3 text-sm font-medium transition-all
+                    `}
+                  >
+                    <SpeakerWaveIcon className={`h-5 w-5 mr-3 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                    Głośność
+                  </button>
+                )}
+              </Tab>
+              <Tab as={Fragment}>
+                {({ selected }) => (
+                  <button
+                    className={`
+                      ${selected ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600' : 'text-gray-600 hover:bg-gray-50 border-l-4 border-l-transparent'}
+                      group flex items-center w-full px-3 py-3 text-sm font-medium transition-all
+                    `}
+                  >
+                    <AdjustmentsHorizontalIcon className={`h-5 w-5 mr-3 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                    Radio
+                  </button>
+                )}
+              </Tab>
+            </Tab.List>
+          </Tab.Group>
+
+          {/* Save button in sidebar with improved design */}
+          <div className="mt-auto p-5 border-t border-gray-200/70 hidden lg:block">
+            <button
+              onClick={handleSaveSettings}
+              className={`w-full py-2.5 px-4 flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg transition-all duration-200 ${
+                hasChanges 
+                  ? 'bg-blue-600/90 text-white hover:bg-blue-700 shadow-sm backdrop-blur-sm' 
+                  : 'bg-gray-100/80 text-gray-700 hover:bg-gray-200/90 backdrop-blur-sm'
+              }`}
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                  <span>Zapisywanie...</span>
+                </>
+              ) : (
+                <>
+                  <CheckIcon className="h-5 w-5" />
+                  <span>Zapisz ustawienia</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Settings Card */}
-        <div className="bg-white rounded-xl shadow-xs p-4 sm:p-7">
-          <div className="text-center mb-8">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-800">
-              Settings
-            </h2>
-            <p className="text-sm text-gray-600">
-              Configure your voice system settings.
+        {/* Right content area with improved panel design */}
+        <div className="flex-1 overflow-hidden bg-transparent">
+          <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
+            {/* Mobile tab navigation with improved styling */}
+            <div className="lg:hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/70 shadow-sm">
+              <div className="px-4 py-2 overflow-x-auto scrollbar-slim">
+                <Tab.List className="flex space-x-2">
+                  <Tab as={Fragment}>
+                    {({ selected }) => (
+                      <button
+                        className={`
+                          ${selected ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-50 border-b-2 border-transparent'}
+                          px-3 py-2.5 text-sm font-medium flex items-center space-x-1.5 whitespace-nowrap transition-all
+                        `}
+                      >
+                        <CalendarDaysIcon className={`h-4 w-4 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span>Harmonogram</span>
+                      </button>
+                    )}
+                  </Tab>
+                  <Tab as={Fragment}>
+                    {({ selected }) => (
+                      <button
+                        className={`
+                          ${selected ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-50 border-b-2 border-transparent'}
+                          px-3 py-2.5 text-sm font-medium flex items-center space-x-1.5 whitespace-nowrap transition-all
+                        `}
+                      >
+                        <KeyIcon className={`h-4 w-4 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span>API Key</span>
+                      </button>
+                    )}
+                  </Tab>
+                  <Tab as={Fragment}>
+                    {({ selected }) => (
+                      <button
+                        className={`
+                          ${selected ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-50 border-b-2 border-transparent'}
+                          px-3 py-2.5 text-sm font-medium flex items-center space-x-1.5 whitespace-nowrap transition-all
+                        `}
+                      >
+                        <MicrophoneIcon className={`h-4 w-4 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span>Głos</span>
+                      </button>
+                    )}
+                  </Tab>
+                  <Tab as={Fragment}>
+                    {({ selected }) => (
+                      <button
+                        className={`
+                          ${selected ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-50 border-b-2 border-transparent'}
+                          px-3 py-2.5 text-sm font-medium flex items-center space-x-1.5 whitespace-nowrap transition-all
+                        `}
+                      >
+                        <SpeakerWaveIcon className={`h-4 w-4 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span>Głośność</span>
+                      </button>
+                    )}
+                  </Tab>
+                  <Tab as={Fragment}>
+                    {({ selected }) => (
+                      <button
+                        className={`
+                          ${selected ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-600' : 'text-gray-600 hover:bg-gray-50 border-b-2 border-transparent'}
+                          px-3 py-2.5 text-sm font-medium flex items-center space-x-1.5 whitespace-nowrap transition-all
+                        `}
+                      >
+                        <AdjustmentsHorizontalIcon className={`h-4 w-4 ${selected ? 'text-blue-600' : 'text-gray-500'}`} />
+                        <span>Radio</span>
+                      </button>
+                    )}
+                  </Tab>
+                </Tab.List>
+              </div>
+            </div>
+
+            {/* Tab content panels with improved design */}
+            <Tab.Panels className="flex-1 h-full overflow-hidden">
+              {/* Scheduler Panel */}
+              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
+                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
+                      <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <CalendarDaysIcon className="h-5 w-5 mr-2 text-blue-600" />
+                        Harmonogram
+                      </h2>
+                      <Scheduler />
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+
+              {/* API Key Panel with improved design */}
+              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
+                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
+                      <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <KeyIcon className="h-5 w-5 mr-2 text-blue-600" />
+                        ElevenLabs API Key
+                      </h2>
+                      <div className="space-y-2">
+                        <label htmlFor="api_key" className="block text-sm font-medium text-gray-700">
+                          API Key
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="password"
+                            id="api_key"
+                            value={settings.api_key}
+                            onChange={(e) => handleSettingsChange('api_key', e.target.value)}
+                            className="py-2.5 px-3 block w-full border border-gray-200 rounded-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+                            placeholder="Wprowadź klucz API ElevenLabs"
+                          />
+                          <div className="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <KeyIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Klucz API jest wymagany do korzystania z usług głosowych ElevenLabs.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+
+              {/* Voice Settings Panel */}
+              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
+                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
+                      <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <MicrophoneIcon className="h-5 w-5 mr-2 text-blue-600" />
+                        Ustawienia głosu
+                      </h2>
+                      <VoiceSettings 
+                        settings={settings.voice}
+                        onChange={(field, value) => handleNestedSettingsChange('voice', field, value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+
+              {/* Volume Settings Panel */}
+              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
+                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
+                      <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <SpeakerWaveIcon className="h-5 w-5 mr-2 text-blue-600" />
+                        Ustawienia głośności
+                      </h2>
+                      <VolumeSettings 
+                        settings={settings.volumes}
+                        onChange={(field, value) => handleNestedSettingsChange('volumes', field, value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+
+              {/* Radio Settings Panel */}
+              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
+                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+                  <div className="max-w-4xl mx-auto">
+                    <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
+                      <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
+                        <AdjustmentsHorizontalIcon className="h-5 w-5 mr-2 text-blue-600" />
+                        Ustawienia radia
+                      </h2>
+                      <SchedulerSettings 
+                        settings={settings.scheduler}
+                        onChange={(field, value) => handleNestedSettingsChange('scheduler', field, value)}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </Tab.Panel>
+            </Tab.Panels>
+          </Tab.Group>
+        </div>
+      </div>
+
+      {/* Bottom save bar on mobile with improved design */}
+      <div className="lg:hidden bg-white/90 backdrop-blur-sm border-t border-gray-200/70 p-4 shadow-lg">
+        <button
+          onClick={handleSaveSettings}
+          className={`w-full py-3 px-4 flex justify-center items-center gap-x-2 text-sm font-medium rounded-lg transition-all ${
+            hasChanges 
+              ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm' 
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          disabled={isSaving}
+        >
+          {isSaving ? (
+            <>
+              <ArrowPathIcon className="h-5 w-5 animate-spin" />
+              <span>Zapisywanie...</span>
+            </>
+          ) : (
+            <>
+              <CheckIcon className="h-5 w-5" />
+              <span>Zapisz ustawienia</span>
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Save Message Toast with improved design */}
+      {saveMessage && (
+        <div 
+          className={`fixed bottom-5 right-5 p-4 rounded-lg shadow-lg max-w-sm settings-appear
+            ${saveMessage.type === 'success' ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}
+          `}
+        >
+          <div className="flex items-center">
+            {saveMessage.type === 'success' ? (
+              <CheckIcon className="h-5 w-5 text-green-500 mr-2 flex-shrink-0" />
+            ) : (
+              <ExclamationTriangleIcon className="h-5 w-5 text-red-500 mr-2 flex-shrink-0" />
+            )}
+            <p className={saveMessage.type === 'success' ? 'text-green-700' : 'text-red-700'}>
+              {saveMessage.text}
             </p>
           </div>
-
-          <form>
-            {/* API Key Section */}
-            <div className="py-6 first:pt-0 last:pb-0 border-t first:border-transparent border-gray-200">
-              <label htmlFor="api_key" className="inline-block text-sm font-medium">
-                ElevenLabs API Key
-              </label>
-
-              <div className="mt-2">
-                <input
-                  type="password"
-                  id="api_key"
-                  value={settings.api_key}
-                  onChange={(e) => handleSettingsChange('api_key', e.target.value)}
-                  className="py-1.5 sm:py-2 px-3 pe-11 block w-full border-gray-200 shadow-2xs sm:text-sm rounded-lg focus:border-blue-500 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            {/* End API Key Section */}
-
-            {/* Voice Settings Section */}
-            <div className="py-6 first:pt-0 last:pb-0 border-t first:border-transparent border-gray-200">
-              <VoiceSettings 
-                settings={settings.voice}
-                onChange={(field, value) => handleNestedSettingsChange('voice', field, value)}
-              />
-            </div>
-            {/* End Voice Settings Section */}
-
-            {/* Volume Settings Section */}
-            <div className="py-6 first:pt-0 last:pb-0 border-t first:border-transparent border-gray-200">
-              <VolumeSettings 
-                settings={settings.volumes}
-                onChange={(field, value) => handleNestedSettingsChange('volumes', field, value)}
-              />
-            </div>
-            {/* End Volume Settings Section */}
-            
-            {/* Scheduler Settings Section */}
-            <div className="py-6 first:pt-0 last:pb-0 border-t first:border-transparent border-gray-200">
-              <SchedulerSettings 
-                settings={settings.scheduler}
-                onChange={(field, value) => handleNestedSettingsChange('scheduler', field, value)}
-              />
-            </div>
-            {/* End Scheduler Settings Section */}
-          </form>
-
-          {/* Action Buttons - Only show when there are changes */}
-          {hasChanges && (
-            <div className="mt-5 flex justify-end gap-x-2">
-              <button
-                onClick={handleCancelChanges}
-                className="py-1.5 sm:py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50"
-                disabled={isSaving}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveSettings}
-                className="py-1.5 sm:py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-blue-700"
-                disabled={isSaving}
-              >
-                {isSaving ? 'Saving...' : 'Save changes'}
-              </button>
-            </div>
-          )}
-
-          {/* Save Message */}
-          {saveMessage && (
-            <div className={`mt-4 p-4 rounded-md ${
-              saveMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-            }`}>
-              {saveMessage.text}
-            </div>
-          )}
         </div>
-        {/* End Settings Card */}
-      </div>
-      {/* End Card Section */}
+      )}
 
-      {/* Confirmation Modal */}
-      <div
-        id="unsaved-changes-alert"
-        className={`fixed inset-0 z-50 overflow-x-hidden overflow-y-auto flex items-center justify-center ${isModalOpen ? 'block bg-gray-900/80' : 'hidden'}`}
-        role="dialog"
-        tabIndex={-1}
-        aria-labelledby="unsaved-changes-alert-label"
-      >
-        <div className={`transform transition-all duration-300 ${isModalOpen ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-12'} sm:max-w-lg sm:w-full m-3 sm:mx-auto`}>
-          <div className="relative flex flex-col bg-white shadow-lg rounded-xl">
-            <div className="absolute top-2 end-2">
-              <button
-                type="button"
-                className="size-8 inline-flex justify-center items-center gap-x-2 rounded-full border border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-200"
-                aria-label="Close"
-                onClick={handleKeepChanges}
-              >
-                <span className="sr-only">Close</span>
-                <svg className="shrink-0 size-4" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-              </button>
-            </div>
-
-            <div className="p-4 sm:p-10 text-center overflow-y-auto">
-              {/* Icon */}
-              <span className="mb-4 inline-flex justify-center items-center size-16 rounded-full border-4 border-yellow-50 bg-yellow-100 text-yellow-500">
-                <svg className="shrink-0 size-6" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
-                  <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
-                </svg>
-              </span>
-              {/* End Icon */}
-
-              <h3 id="unsaved-changes-alert-label" className="mb-2 text-2xl font-bold text-gray-800">
-                Unsaved Changes
-              </h3>
-              <p className="text-gray-500">
-                You have unsaved changes. Are you sure you want to discard these changes?
-              </p>
-
-              <div className="mt-6 flex justify-center gap-x-4">
-                <button
-                  type="button"
-                  className="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-2xs hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50"
-                  onClick={handleCloseModalAndDiscard}
-                >
-                  Discard changes
-                </button>
-                <button
-                  type="button"
-                  className="py-2 px-3 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-transparent bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-blue-700"
-                  onClick={handleKeepChanges}
-                >
-                  Keep editing
-                </button>
+      {/* Confirmation Modal with improved design */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+          <div className="flex items-center justify-center min-h-screen p-4 text-center">
+            {/* Backdrop */}
+            <div className="fixed inset-0 bg-gray-900/75 transition-opacity backdrop-blur-sm" aria-hidden="true"></div>
+            
+            {/* Modal panel */}
+            <div className="relative bg-white rounded-lg max-w-md w-full p-6 text-left shadow-xl settings-appear">
+              <div className="text-center">
+                {/* Warning icon */}
+                <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+                  <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600" />
+                </div>
+                
+                <h3 className="text-lg font-medium text-gray-900 mb-2" id="modal-title">
+                  Niezapisane zmiany
+                </h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  Masz niezapisane zmiany. Czy na pewno chcesz je odrzucić?
+                </p>
+                
+                <div className="flex flex-col sm:flex-row justify-center gap-2 sm:gap-3">
+                  <button
+                    type="button"
+                    className="inline-flex justify-center items-center py-2.5 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
+                    onClick={handleKeepChanges}
+                  >
+                    Kontynuuj edycję
+                  </button>
+                  <button
+                    type="button"
+                    className="inline-flex justify-center items-center py-2.5 px-4 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 shadow-sm"
+                    onClick={handleCloseModalAndDiscard}
+                  >
+                    Odrzuć zmiany
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
-      {/* End Confirmation Modal */}
-    </>
+      )}
+    </div>
   );
 };
 

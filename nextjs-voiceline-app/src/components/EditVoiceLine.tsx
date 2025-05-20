@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import api from '../utils/api';
+import ApiErrorHandler from './ui/ApiErrorHandler';
+import { formatApiError } from '../utils/errorUtils';
 
 interface EditVoiceLineProps {
   lineId: number;
@@ -23,6 +25,7 @@ const EditVoiceLine: React.FC<EditVoiceLineProps> = ({
   const [loading, setLoading] = useState(false);
   const [toggleLoading, setToggleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const needsRefreshRef = useRef(false);
 
   // Set initial text and active state when component opens
   useEffect(() => {
@@ -30,10 +33,15 @@ const EditVoiceLine: React.FC<EditVoiceLineProps> = ({
       setText(currentText);
       setActive(isActive);
       setError(null);
+      needsRefreshRef.current = false;
     }
   }, [isOpen, currentText, isActive]);
 
   const handleCloseModal = () => {
+    // If we toggled active state, refresh the list when closing
+    if (needsRefreshRef.current && onVoiceLineUpdated) {
+      onVoiceLineUpdated();
+    }
     onClose();
   };
 
@@ -50,48 +58,49 @@ const EditVoiceLine: React.FC<EditVoiceLineProps> = ({
     
     try {
       await api.put(`/lines/${lineId}`, { new_text: text });
+      
+      // Always refresh on submit
       if (onVoiceLineUpdated) {
         onVoiceLineUpdated();
       }
+      
       handleCloseModal();
     } catch (err: any) {
       console.error('Błąd podczas aktualizacji linii głosowej:', err);
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("Nie udało się zaktualizować linii głosowej. Spróbuj ponownie.");
-      }
+      // Use centralized error formatting
+      setError(formatApiError(err));
     } finally {
       setLoading(false);
     }
   };
 
   // Handle toggling active state
-  const handleToggleActive = async () => {
+  const handleToggleActive = async (e: React.MouseEvent) => {
+    e.preventDefault(); // Prevent any default form submission
+    e.stopPropagation(); // Stop event propagation
+    
     setToggleLoading(true);
     setError(null);
+    
+    const newActiveState = !active;
     
     try {
       // Call API to toggle line active status
       await api.post('/lines/toggle', {
         ids: [lineId],
-        state: !active
+        state: newActiveState
       });
       
-      // Update local state
-      setActive(!active);
+      // Update local state immediately
+      setActive(newActiveState);
       
-      // If callback provided, refresh parent component
-      if (onVoiceLineUpdated) {
-        onVoiceLineUpdated();
-      }
+      // Mark that we need to refresh when closing the modal
+      needsRefreshRef.current = true;
+      
     } catch (err: any) {
       console.error('Błąd podczas zmiany statusu linii głosowej:', err);
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
-      } else {
-        setError("Nie udało się zmienić statusu linii. Spróbuj ponownie.");
-      }
+      // Use centralized error formatting
+      setError(formatApiError(err));
     } finally {
       setToggleLoading(false);
     }
@@ -161,9 +170,10 @@ const EditVoiceLine: React.FC<EditVoiceLineProps> = ({
           </div>
           
           {error && (
-            <div className="mb-4 p-2 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
-              {error}
-            </div>
+            <ApiErrorHandler 
+              error={error} 
+              onDismiss={() => setError(null)} 
+            />
           )}
           
           <div className="flex justify-end gap-2">

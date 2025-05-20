@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import InfoTooltip from '../ui/InfoTooltip';
 
 interface CompressionSettings {
   threshold: number;
@@ -41,16 +42,31 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
   return (
     <>
-      <label className="inline-block text-sm font-medium mb-2">Volume Settings</label>
+      <label className="inline-block text-sm font-medium mb-2 flex items-center">
+        Volume Settings
+        <span className="ml-2">
+          <InfoTooltip 
+            content="Ustawienia głośności pozwalają na dostosowanie poziomów dźwięku dla różnych elementów systemu: głośności głównej, radia, przyciszenia i głosu." 
+          />
+        </span>
+      </label>
       
       <div className="space-y-4">
         {/* Volume Sliders */}
         <div className="grid grid-cols-1 gap-4">
           {/* Master Volume Slider */}
           <div>
-            <label htmlFor="master" className="block text-xs font-medium text-gray-700 mb-1">
-              Master Volume: {settings.master.toFixed(2)}
-            </label>
+            <div className="flex items-center mb-1">
+              <label htmlFor="master" className="block text-xs font-medium text-gray-700">
+                Master Volume: {settings.master.toFixed(2)}
+              </label>
+              <span className="ml-2">
+                <InfoTooltip 
+                  content="Główna głośność systemu - kontroluje ogólny poziom dźwięku wszystkich elementów. Zalecana wartość: 0.5-1.5" 
+                  position="right"
+                />
+              </span>
+            </div>
             <input
               type="range"
               id="master"
@@ -70,9 +86,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
           {/* Radio Volume Slider */}
           <div>
-            <label htmlFor="radio" className="block text-xs font-medium text-gray-700 mb-1">
-              Radio Volume: {settings.radio.toFixed(2)}
-            </label>
+            <div className="flex items-center mb-1">
+              <label htmlFor="radio" className="block text-xs font-medium text-gray-700">
+                Radio Volume: {settings.radio.toFixed(2)}
+              </label>
+              <span className="ml-2">
+                <InfoTooltip 
+                  content="Głośność strumienia radiowego. Wartość 1.0 oznacza pełną głośność, 0.0 całkowite wyciszenie." 
+                  position="right"
+                />
+              </span>
+            </div>
             <input
               type="range"
               id="radio"
@@ -92,9 +116,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
           {/* Ducking Volume Slider */}
           <div>
-            <label htmlFor="ducking" className="block text-xs font-medium text-gray-700 mb-1">
-              Ducking Volume: {settings.ducking.toFixed(2)}
-            </label>
+            <div className="flex items-center mb-1">
+              <label htmlFor="ducking" className="block text-xs font-medium text-gray-700">
+                Ducking Volume: {settings.ducking.toFixed(2)}
+              </label>
+              <span className="ml-2">
+                <InfoTooltip 
+                  content="Poziom przyciszenia radia podczas odtwarzania głosu. Niższa wartość oznacza większe przyciszenie radia podczas mówienia." 
+                  position="right"
+                />
+              </span>
+            </div>
             <input
               type="range"
               id="ducking"
@@ -114,9 +146,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
           {/* Voice Volume Slider */}
           <div>
-            <label htmlFor="voice" className="block text-xs font-medium text-gray-700 mb-1">
-              Voice Volume: {settings.voice.toFixed(2)}
-            </label>
+            <div className="flex items-center mb-1">
+              <label htmlFor="voice" className="block text-xs font-medium text-gray-700">
+                Voice Volume: {settings.voice.toFixed(2)}
+              </label>
+              <span className="ml-2">
+                <InfoTooltip 
+                  content="Głośność odtwarzanych linii głosowych. Reguluje poziom głośności syntetycznego głosu." 
+                  position="right"
+                />
+              </span>
+            </div>
             <input
               type="range"
               id="voice"
@@ -138,7 +178,15 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
         {/* Compression Settings */}
         <div className="mt-3 border-t border-gray-100 pt-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-medium">Compression Settings</h3>
+            <h3 className="text-xs font-medium flex items-center">
+              Compression Settings
+              <span className="ml-2">
+                <InfoTooltip 
+                  content="Ustawienia kompresora dźwięku poprawiające dynamikę głosu i jego słyszalność na tle radia. Zaawansowane ustawienia dla lepszej jakości dźwięku." 
+                  position="bottom"
+                />
+              </span>
+            </h3>
             <button
               type="button"
               onClick={() => setIsCompressionExpanded(!isCompressionExpanded)}
@@ -152,9 +200,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
             <div className="mt-3 space-y-4 bg-gray-50 p-4 rounded-md">
               {/* Threshold Slider */}
               <div>
-                <label htmlFor="threshold" className="block text-xs font-medium text-gray-700 mb-1">
-                  Threshold: {settings.compression.threshold.toFixed(1)} dBFS
-                </label>
+                <div className="flex items-center mb-1">
+                  <label htmlFor="threshold" className="block text-xs font-medium text-gray-700">
+                    Threshold: {settings.compression.threshold.toFixed(1)} dBFS
+                  </label>
+                  <span className="ml-2">
+                    <InfoTooltip 
+                      content="Próg kompresji - poziom głośności, powyżej którego zostanie zastosowana kompresja. Niższa wartość oznacza więcej kompresji." 
+                      position="right"
+                    />
+                  </span>
+                </div>
                 <input
                   type="range"
                   id="threshold"
@@ -174,9 +230,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
               {/* Ratio Slider */}
               <div>
-                <label htmlFor="ratio" className="block text-xs font-medium text-gray-700 mb-1">
-                  Ratio: {settings.compression.ratio.toFixed(1)}:1
-                </label>
+                <div className="flex items-center mb-1">
+                  <label htmlFor="ratio" className="block text-xs font-medium text-gray-700">
+                    Ratio: {settings.compression.ratio.toFixed(1)}:1
+                  </label>
+                  <span className="ml-2">
+                    <InfoTooltip 
+                      content="Stosunek kompresji - określa jak mocno dźwięk powyżej progu zostanie ściszony. Np. 4:1 oznacza, że dźwięk 4dB powyżej progu zostanie zredukowany do 1dB powyżej progu." 
+                      position="right"
+                    />
+                  </span>
+                </div>
                 <input
                   type="range"
                   id="ratio"
@@ -196,9 +260,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
               {/* Attack Slider */}
               <div>
-                <label htmlFor="attack" className="block text-xs font-medium text-gray-700 mb-1">
-                  Attack: {settings.compression.attack.toFixed(1)} ms
-                </label>
+                <div className="flex items-center mb-1">
+                  <label htmlFor="attack" className="block text-xs font-medium text-gray-700">
+                    Attack: {settings.compression.attack.toFixed(1)} ms
+                  </label>
+                  <span className="ml-2">
+                    <InfoTooltip 
+                      content="Czas ataku - określa jak szybko kompresor reaguje na wzrost głośności. Niższe wartości oznaczają szybszą reakcję kompresora." 
+                      position="right"
+                    />
+                  </span>
+                </div>
                 <input
                   type="range"
                   id="attack"
@@ -218,9 +290,17 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
 
               {/* Release Slider */}
               <div>
-                <label htmlFor="release" className="block text-xs font-medium text-gray-700 mb-1">
-                  Release: {settings.compression.release.toFixed(1)} ms
-                </label>
+                <div className="flex items-center mb-1">
+                  <label htmlFor="release" className="block text-xs font-medium text-gray-700">
+                    Release: {settings.compression.release.toFixed(1)} ms
+                  </label>
+                  <span className="ml-2">
+                    <InfoTooltip 
+                      content="Czas zwolnienia - określa jak szybko kompresor przestaje działać po spadku głośności poniżej progu. Wyższe wartości dają płynniejsze brzmienie." 
+                      position="right"
+                    />
+                  </span>
+                </div>
                 <input
                   type="range"
                   id="release"

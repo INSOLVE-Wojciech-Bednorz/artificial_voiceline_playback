@@ -159,11 +159,11 @@ const Header: React.FC = () => {
                             Settings
                         </a>
                         
-                        {/* Enhanced Status Indicator */}
+                        {/* Connection Status Indicator */}
                         <EnhancedStatusIndicator 
                             active={schedulerActive} 
                             loading={schedulerLoading} 
-                            label="Status" 
+                            label="Status"
                         />
                     </div>
                 </div>

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import api from '../api';
+import { useConnectionContext } from './ConnectionContext';
 
 // Define types
 export interface VoiceLine {
@@ -65,6 +66,9 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 // Provider component
 const AppContextProvider = ({ children }: { children: ReactNode }) => {
+  // Access connection context
+  const connectionContext = useConnectionContext();
+  
   // Voice Lines State
   const [voiceLines, setVoiceLines] = useState<VoiceLine[]>([]);
   const [voiceLinesLoading, setVoiceLinesLoading] = useState(true);
@@ -114,9 +118,16 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
         setVoiceSystemError(null);
       }
     } catch (error: any) {
-      console.error('Error fetching settings:', error);
-      setRadioStatusError(error?.response?.data?.detail || 'Failed to load settings');
-      setVoiceSystemError(error?.response?.data?.detail || 'Failed to load settings');
+      // Check if it's a backend connection error
+      if (error.isBackendConnectionError) {
+        // Use friendly error message instead of showing technical details
+        setRadioStatusError('Brak połączenia z serwerem');
+        setVoiceSystemError('Brak połączenia z serwerem');
+      } else {
+        console.error('Error fetching settings:', error);
+        setRadioStatusError(error?.response?.data?.detail || 'Nie udało się załadować ustawień');
+        setVoiceSystemError(error?.response?.data?.detail || 'Nie udało się załadować ustawień');
+      }
     } finally {
       setRadioStatusLoading(false);
       setVoiceSystemLoading(false);
@@ -132,8 +143,15 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       const response = await api.get('/lines');
       setVoiceLines(response.data);
     } catch (error: any) {
-      console.error('Error fetching voice lines:', error);
-      setVoiceLinesError(error?.response?.data?.detail || 'Failed to load voice lines');
+      // Check if it's a backend connection error
+      if (error.isBackendConnectionError) {
+        // Use friendly error message for connection issues
+        setVoiceLinesError('Brak połączenia z serwerem');
+      } else {
+        // For other errors, use response detail or default message
+        setVoiceLinesError(error?.response?.data?.detail || 'Nie udało się załadować linii głosowych');
+        console.error('Error fetching voice lines:', error);
+      }
     } finally {
       setVoiceLinesLoading(false);
     }
@@ -229,8 +247,17 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
       setSchedulerActive(response.data.is_running);
       setSchedulerError(null);
     } catch (error: any) {
-      console.error('Error fetching scheduler status:', error);
-      setSchedulerActive(false);
+      // Check if it's a backend connection error
+      if (error.isBackendConnectionError) {
+        // Silently set to default - we already have connection error displayed elsewhere
+        setSchedulerActive(false);
+        // We don't need to show connection error for every component
+        // setSchedulerError('Brak połączenia z serwerem');
+      } else {
+        console.error('Error fetching scheduler status:', error);
+        setSchedulerActive(false);
+        setSchedulerError(error?.response?.data?.detail || 'Nie udało się załadować statusu harmonogramu');
+      }
     } finally {
       setSchedulerLoading(false);
     }
@@ -262,27 +289,33 @@ const AppContextProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Load initial data on mount
+  // Load initial data on mount and when connection state changes
   useEffect(() => {
-    // Initial fetch of voice lines
-    refreshVoiceLines();
-    
-    // Initial fetch of scheduler status
-    refreshSchedulerStatus();
-    
-    // Initial fetch of settings
-    fetchSettings();
-    
-    // Set up scheduler status refresh every 10 seconds
-    const schedulerInterval = setInterval(() => {
+    // Only fetch data if connected
+    if (connectionContext.isConnected) {
+      // Initial fetch of voice lines
+      refreshVoiceLines();
+      
+      // Initial fetch of scheduler status
       refreshSchedulerStatus();
-    }, 10000); // Refresh every 10 seconds
-    
-    // Clean up on unmount
-    return () => {
-      clearInterval(schedulerInterval);
-    };
-  }, [refreshVoiceLines, refreshSchedulerStatus]);
+      
+      // Initial fetch of settings
+      fetchSettings();
+      
+      // Set up scheduler status refresh every 10 seconds
+      const schedulerInterval = setInterval(() => {
+        // Only refresh if still connected
+        if (connectionContext.isConnected) {
+          refreshSchedulerStatus();
+        }
+      }, 10000); // Refresh every 10 seconds
+      
+      // Clean up on unmount
+      return () => {
+        clearInterval(schedulerInterval);
+      };
+    }
+  }, [refreshVoiceLines, refreshSchedulerStatus, connectionContext.isConnected]);
 
   // Create the context value object with all our state and functions
   const contextValue: AppContextType = {

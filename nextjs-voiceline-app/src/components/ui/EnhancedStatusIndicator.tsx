@@ -6,7 +6,11 @@ interface EnhancedStatusIndicatorProps {
   label: string;
 }
 
-const EnhancedStatusIndicator: React.FC<EnhancedStatusIndicatorProps> = ({ active, loading, label }) => {
+const EnhancedStatusIndicator: React.FC<EnhancedStatusIndicatorProps> = ({ 
+  active, 
+  loading, 
+  label 
+}) => {
   // Gradient colors based on status
   const gradientClasses = active 
     ? 'from-green-300 via-green-500 to-green-600 text-white' 

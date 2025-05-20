@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppContext, VoiceLine } from '../utils/context/AppContext';
+import { useConnectionContext } from '../utils/context/ConnectionContext';
 import VoiceLineTable from './VoiceLineTable';
 import SearchAndFilterBar from './SearchAndFilterBar';
 import BulkActions from './BulkActions';
@@ -7,7 +8,11 @@ import EditVoiceLine from './EditVoiceLine';
 import AddVoiceLineModal from './AddVoiceLineModal';
 import LoadingState from './ui/LoadingState';
 import ErrorState from './ui/ErrorState';
+import ConnectionErrorState from './ui/ConnectionErrorState';
 import EmptyState from './ui/EmptyState';
+
+// Type for sort direction
+type SortDirection = 'asc' | 'desc';
 
 const VoiceLinesList: React.FC = () => {
   // Access context data
@@ -17,6 +22,9 @@ const VoiceLinesList: React.FC = () => {
     voiceLinesError,
     refreshVoiceLines
   } = useAppContext();
+  
+  // Access connection status
+  const { isConnected, isChecking, retryConnection } = useConnectionContext();
 
   // Local state
   const [filteredLines, setFilteredLines] = useState<VoiceLine[]>([]);
@@ -27,8 +35,24 @@ const VoiceLinesList: React.FC = () => {
   const [addModalOpen, setAddModalOpen] = useState<boolean>(false);
   const [lineToEdit, setLineToEdit] = useState<{id: number, text: string, active: boolean} | null>(null);
   const [selectAll, setSelectAll] = useState(false);
+  
+  // Sorting state (default: newest items first - id desc)
+  const [sortField, setSortField] = useState<'id'>('id');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
 
-  // Apply filtering based on search and active status
+  // Handle sorting
+  const handleSort = (field: 'id') => {
+    if (sortField === field) {
+      // Toggle direction if clicking the same field
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      // Set new field and default direction
+      setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+
+  // Apply filtering and sorting based on search, active status, and sort settings
   useEffect(() => {
     let result = [...voiceLines];
 
@@ -48,8 +72,17 @@ const VoiceLinesList: React.FC = () => {
       result = result.filter(line => !line.active);
     }
 
+    // Apply sorting
+    if (sortField === 'id') {
+      result.sort((a, b) => {
+        return sortDirection === 'asc' 
+          ? a.id - b.id 
+          : b.id - a.id;
+      });
+    }
+
     setFilteredLines(result);
-  }, [voiceLines, searchQuery, activeFilter]);
+  }, [voiceLines, searchQuery, activeFilter, sortField, sortDirection]);
 
   // Handle search input change
   const handleSearch = (query: string) => {
@@ -119,12 +152,28 @@ const VoiceLinesList: React.FC = () => {
     );
   }
 
-  // Show error state
-  if (voiceLinesError) {
+  // Show backend connection error state
+  if (!isConnected && !isChecking) {
+    return (
+      <div className="w-full max-w-6xl mx-auto px-4 py-2 h-full flex flex-col">
+        <ConnectionErrorState 
+          onRetry={async () => {
+            const connected = await retryConnection();
+            if (connected) {
+              refreshVoiceLines();
+            }
+          }} 
+        />
+      </div>
+    );
+  }
+  
+  // Show other error states (when connected but other errors occur)
+  if (voiceLinesError && isConnected) {
     return (
       <div className="w-full max-w-6xl mx-auto px-4 py-2 h-full flex flex-col">
         <ErrorState 
-          title="Błąd połączenia" 
+          title="Błąd" 
           message={voiceLinesError} 
           onRetry={() => refreshVoiceLines()} 
         />
@@ -191,6 +240,9 @@ const VoiceLinesList: React.FC = () => {
                   onSelectAll={handleSelectAll}
                   onToggleSelect={handleToggleCheckbox}
                   onEdit={handleEdit}
+                  sortField={sortField}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
                 />
 
                 {/* Table Footer */}
