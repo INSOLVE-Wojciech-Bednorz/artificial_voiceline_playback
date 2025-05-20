@@ -1,4 +1,4 @@
-api_key: sk_91ff39808f369a43d4f7e9844c94fd6bcd30f19b8bee2c05
+api_key: sk_c3080639f3d803a0e690bbef0d8d85a238fab2e1e6b4a9fd
 voice:
   id: NacdHGUYR1k3M0FAbAia
   model: eleven_multilingual_v2
@@ -7,10 +7,10 @@ voice:
   style: 0.3
   speed: 1.0
 volumes:
-  master: 1.59
-  radio: 0.63
-  ducking: 0.11
-  voice: 1.96
+  master: 1.0
+  radio: 0.5
+  ducking: 0.1
+  voice: 1.0
   compression:
     threshold: -20.0
     ratio: 4.0
@@ -18,9 +18,9 @@ volumes:
     release: 50.0
 radio:
   playlist: RMF_FM.pls
-  interval: 5.0
+  interval: 300
 distortion_simulation:
-  enabled: false
+  enabled: False
   sample_rate: 32000
   distortion: 0.0002
   filter_low: 200
@@ -28,3 +28,11 @@ distortion_simulation:
   noise_level: 0.0001
   bit_depth: 16
   crackle: 0.0002
+degradation:
+  sample_rate: 8000
+  distortion: 1.0
+  filter_low: 20
+  filter_high: 100
+  noise_level: 0.5
+  bit_depth: 4
+  crackle: 0.5
