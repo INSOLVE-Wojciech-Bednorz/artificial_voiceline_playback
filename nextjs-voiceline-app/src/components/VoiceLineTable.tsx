@@ -60,104 +60,115 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
   };
 
   return (
-    <table className="min-w-full divide-y divide-gray-200">
-      <thead className="bg-gray-50">
-        <tr>
-          <th scope="col" className="ps-6 py-3 text-start">
-            <label htmlFor="select-all-checkbox" className="flex">
-              <input 
-                type="checkbox" 
-                className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none" 
-                id="select-all-checkbox" 
-                checked={selectAll}
-                onChange={onSelectAll}
-              />
-              <span className="sr-only">Select all</span>
-            </label>
-          </th>
+    <div className="overflow-x-auto">
+      <table className="min-w-full divide-y divide-gray-200 table-fixed">
+        <colgroup>
+          <col className="w-12" />
+          <col className="w-16" />
+          <col className="w-[65%]" />
+          <col className="w-28" />
+          <col className="w-20" />
+        </colgroup>
+        <thead className="bg-gray-50">
+          <tr>
+            <th scope="col" className="ps-6 py-3 text-start">
+              <label htmlFor="select-all-checkbox" className="flex">
+                <input 
+                  type="checkbox" 
+                  className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none" 
+                  id="select-all-checkbox" 
+                  checked={selectAll}
+                  onChange={onSelectAll}
+                />
+                <span className="sr-only">Select all</span>
+              </label>
+            </th>
 
-          <th 
-            scope="col" 
-            className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 text-start cursor-pointer"
-            onClick={() => onSort && onSort('id')}
-          >
-            <div className="flex items-center gap-x-2">
-              <span className="text-xs font-semibold uppercase text-gray-800">
-                ID {renderSortIndicator('id')}
-              </span>
-            </div>
-          </th>
+            <th 
+              scope="col" 
+              className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 text-start cursor-pointer"
+              onClick={() => onSort && onSort('id')}
+            >
+              <div className="flex items-center gap-x-2">
+                <span className="text-xs font-semibold uppercase text-gray-800">
+                  ID {renderSortIndicator('id')}
+                </span>
+              </div>
+            </th>
 
-          <th scope="col" className="px-6 py-3 text-start">
-            <div className="flex items-center gap-x-2">
-              <span className="text-xs font-semibold uppercase text-gray-800">
-                Tekst
-              </span>
-            </div>
-          </th>
+            <th scope="col" className="px-6 py-3 text-start">
+              <div className="flex items-center gap-x-2">
+                <span className="text-xs font-semibold uppercase text-gray-800">
+                  Tekst
+                </span>
+              </div>
+            </th>
 
-          <th scope="col" className="px-6 py-3 text-start">
-            <div className="flex items-center gap-x-2">
-              <span className="text-xs font-semibold uppercase text-gray-800">
-                Status
-              </span>
-            </div>
-          </th>
+            <th scope="col" className="px-6 py-3 text-start">
+              <div className="flex items-center gap-x-2">
+                <span className="text-xs font-semibold uppercase text-gray-800">
+                  Status
+                </span>
+              </div>
+            </th>
 
-          <th scope="col" className="px-6 py-3 text-end"></th>
-        </tr>
-      </thead>
-
-      <tbody className="divide-y divide-gray-200">
-        {lines.map((line) => (
-          <tr key={line.id} className="hover:bg-gray-50">
-            <td className="size-px whitespace-nowrap">
-              <div className="ps-6 py-3">
-                <label htmlFor={`checkbox-${line.id}`} className="flex">
-                  <input 
-                    id={`checkbox-${line.id}`}
-                    type="checkbox"
-                    checked={selectedIds.includes(line.id)}
-                    onChange={(e) => onToggleSelect(line.id, e)}
-                    className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none"
-                  />
-                  <span className="sr-only">Checkbox</span>
-                </label>
-              </div>
-            </td>
-            
-            <td className="size-px whitespace-nowrap">
-              <div className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3">
-                <span className="text-sm font-medium text-gray-800">{line.id}</span>
-              </div>
-            </td>
-            
-            <td className="size-px">
-              <div className="px-6 py-3">
-                <span className="text-sm font-medium text-gray-800">{line.text}</span>
-              </div>
-            </td>
-            
-            <td className="size-px whitespace-nowrap">
-              <div className="px-6 py-3">
-                <StatusBadge active={line.active} />
-              </div>
-            </td>
-            
-            <td className="size-px whitespace-nowrap">
-              <div className="px-6 py-1.5">
-                <button 
-                  className="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline focus:outline-hidden focus:underline font-medium cursor-pointer" 
-                  onClick={() => onEdit(line.id)}
-                >
-                  Edytuj
-                </button>
-              </div>
-            </td>
+            <th scope="col" className="px-6 py-3 text-end"></th>
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+
+        <tbody className="divide-y divide-gray-200">
+          {lines.map((line) => (
+            <tr key={line.id} className="hover:bg-gray-50 group">
+              <td className="whitespace-nowrap">
+                <div className="ps-6 py-3">
+                  <label htmlFor={`checkbox-${line.id}`} className="flex">
+                    <input 
+                      id={`checkbox-${line.id}`}
+                      type="checkbox"
+                      checked={selectedIds.includes(line.id)}
+                      onChange={(e) => onToggleSelect(line.id, e)}
+                      className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none"
+                    />
+                    <span className="sr-only">Checkbox</span>
+                  </label>
+                </div>
+              </td>
+              
+              <td className="whitespace-nowrap">
+                <div className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3">
+                  <span className="text-sm font-medium text-gray-800">{line.id}</span>
+                </div>
+              </td>
+              
+              <td>
+                <div className="px-6 py-3">
+                  <div className="group-hover:line-clamp-none line-clamp-2 text-sm text-gray-800 break-words">
+                    {line.text}
+                  </div>
+                </div>
+              </td>
+              
+              <td className="whitespace-nowrap">
+                <div className="px-6 py-3">
+                  <StatusBadge active={line.active} />
+                </div>
+              </td>
+              
+              <td className="whitespace-nowrap text-right">
+                <div className="px-6 py-1.5">
+                  <button 
+                    className="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline focus:outline-hidden focus:underline font-medium cursor-pointer" 
+                    onClick={() => onEdit(line.id)}
+                  >
+                    Edytuj
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 };
 

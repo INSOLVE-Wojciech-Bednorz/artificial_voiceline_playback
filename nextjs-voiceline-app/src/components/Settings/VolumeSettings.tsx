@@ -245,7 +245,7 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                   type="range"
                   id="ratio"
                   name="ratio"
-                  min="1"
+                  min="1.1"
                   max="20"
                   step="0.1"
                   value={settings.compression.ratio}
@@ -253,7 +253,7 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>1:1</span>
+                  <span>1.1:1</span>
                   <span>20:1</span>
                 </div>
               </div>

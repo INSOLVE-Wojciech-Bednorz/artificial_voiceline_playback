@@ -516,7 +516,7 @@ const SettingsManager = () => {
   }
 
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col settings-manager-container">
       {/* Fixed position notification banner that doesn't push content down */}
       {hasChanges && (
         <div className="fixed top-16 inset-x-0 z-40 pointer-events-none flex justify-center">
@@ -556,14 +556,14 @@ const SettingsManager = () => {
 
       {/* Settings layout with improved design */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Left sidebar with improved styling */}
-        <div className="lg:w-72 bg-white/80 backdrop-blur-sm lg:flex lg:flex-col lg:border-r lg:border-gray-200/70 lg:shadow-sm">
+        {/* Left sidebar with improved styling - only visible on desktop */}
+        <div className="hidden lg:w-72 lg:flex lg:flex-col lg:bg-white/80 lg:backdrop-blur-sm lg:border-r lg:border-gray-200/70 lg:shadow-sm">
           <div className="p-6">
             <h1 className="text-2xl font-semibold text-gray-900">Ustawienia</h1>
             <p className="text-sm text-gray-500 mt-1">Zarządzaj ustawieniami systemu</p>
           </div>
 
-          {/* Tab navigation with improved visuals */}
+          {/* Tab navigation with improved visuals - only for desktop */}
           <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab} vertical>
             <Tab.List className="flex flex-col space-y-1 px-4 pb-6">
               <Tab as={Fragment}>
@@ -665,6 +665,10 @@ const SettingsManager = () => {
           <Tab.Group selectedIndex={selectedTab} onChange={setSelectedTab}>
             {/* Mobile tab navigation with improved styling */}
             <div className="lg:hidden bg-white/90 backdrop-blur-sm border-b border-gray-200/70 shadow-sm">
+              <div className="px-4 pt-4">
+                <h1 className="text-xl font-semibold text-gray-900">Ustawienia</h1>
+                <p className="text-xs text-gray-500 mb-2">Zarządzaj ustawieniami systemu</p>
+              </div>
               <div className="px-4 py-2 overflow-x-auto scrollbar-slim">
                 <Tab.List className="flex space-x-2">
                   <Tab as={Fragment}>
@@ -737,10 +741,10 @@ const SettingsManager = () => {
             </div>
 
             {/* Tab content panels with improved design */}
-            <Tab.Panels className="flex-1 h-full overflow-hidden">
+            <Tab.Panels className="flex-1 h-full overflow-auto">
               {/* Scheduler Panel */}
-              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
-                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+              <Tab.Panel className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto p-6">
                   <div className="max-w-4xl mx-auto">
                     <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
                       <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -754,8 +758,8 @@ const SettingsManager = () => {
               </Tab.Panel>
 
               {/* API Key Panel with improved design */}
-              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
-                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+              <Tab.Panel className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto p-6">
                   <div className="max-w-4xl mx-auto">
                     <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
                       <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -789,8 +793,8 @@ const SettingsManager = () => {
               </Tab.Panel>
 
               {/* Voice Settings Panel */}
-              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
-                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+              <Tab.Panel className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto p-6">
                   <div className="max-w-4xl mx-auto">
                     <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
                       <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -807,8 +811,8 @@ const SettingsManager = () => {
               </Tab.Panel>
 
               {/* Volume Settings Panel */}
-              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
-                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+              <Tab.Panel className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto p-6">
                   <div className="max-w-4xl mx-auto">
                     <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
                       <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
@@ -825,8 +829,8 @@ const SettingsManager = () => {
               </Tab.Panel>
 
               {/* Radio Settings Panel */}
-              <Tab.Panel className="h-full overflow-hidden settings-tab-appear">
-                <div className="h-full overflow-y-auto scrollbar-slim p-6">
+              <Tab.Panel className="h-full overflow-y-auto">
+                <div className="h-full overflow-y-auto p-6">
                   <div className="max-w-4xl mx-auto">
                     <div className="bg-white/90 backdrop-blur-sm rounded-xl shadow-sm p-6 border border-gray-100/70">
                       <h2 className="text-lg font-medium text-gray-900 mb-4 flex items-center">
