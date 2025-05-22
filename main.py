@@ -130,7 +130,7 @@ async def get_line_audio_file(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audio file for line ID {line_id} not found on server.")
 
     try:
-        return FileResponse(path=file_path, media_type="audio/mpeg", filename=filename)
+        return FileResponse(path=file_path, media_type="audio/mpeg")
     except Exception as e:
         logger.error(f"Error serving audio file {file_path} for line ID {line_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not serve audio file: {str(e)}")
