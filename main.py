@@ -8,15 +8,18 @@ from contextlib import asynccontextmanager
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from fastapi import FastAPI, HTTPException, Body, status, Depends, Path as F_path
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from typing import List, Dict, Any
 
 # Import models and the core voice system logic
 import models
-from voice_system import VoiceSystem, DEFAULT_CONFIG, _get_nested_value # Import default config too
+from voice_system import VoiceSystem, DEFAULT_CONFIG, _get_nested_value, AUDIO_DIR
 
 from fastapi.staticfiles import StaticFiles
 # Import StaticFiles to serve static content (CSS, JS, images) via HTTP endpoints in FastAPI
+
+HOST_IP_ORIGIN = "CHANGE_THIS"
+
 
 # --- Logging Setup ---
 # Use the logger configured in voice_system.py
@@ -86,6 +89,52 @@ async def validation_exception_handler(request, exc):
 async def get_all_lines(vs: VoiceSystem = Depends(get_voice_system)):
     """Retrieves a list of all configured voice lines, sorted by ID."""
     return vs.get_lines() # Already sorted by ID in _save_lines
+
+@app.get(
+    "/lines/{line_id}/audiofile",
+    response_class=FileResponse,
+    summary="Get Audio File for a Specific Voice Line",
+    tags=["Voice Lines"],
+    responses={
+        200: {
+            "content": {"audio/mpeg": {}},
+            "description": "The audio file for the specified line ID.",
+        },
+        404: {"model": models.ErrorDetail, "description": "Line or audio file not found"},
+        500: {"model": models.ErrorDetail, "description": "Internal Server Error"}
+    }
+)
+async def get_line_audio_file(
+    line_id: int = F_path(..., description="The ID of the line for which to retrieve the audio file.", ge=1),
+    vs: VoiceSystem = Depends(get_voice_system)
+):
+    """
+    Retrieves the raw MP3 audio file for a specific voice line, identified by its `line_id`.
+    This allows direct playback or download of the audio file.
+    """
+    if line_id <= 0:
+         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Line ID must be a positive integer.")
+
+    line = vs.get_line_by_id(line_id)
+    if not line:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Voice line with ID {line_id} not found.")
+
+    filename = line.get('filename')
+    if not filename:
+        logger.error(f"Line ID {line_id} found, but has no associated filename.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audio filename missing for line ID {line_id}.")
+
+    file_path = AUDIO_DIR / filename
+    if not file_path.is_file():
+        logger.error(f"Audio file '{filename}' for line ID {line_id} not found at path: {file_path}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audio file for line ID {line_id} not found on server.")
+
+    try:
+        return FileResponse(path=file_path, media_type="audio/mpeg", filename=filename)
+    except Exception as e:
+        logger.error(f"Error serving audio file {file_path} for line ID {line_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not serve audio file: {str(e)}")
+
 
 @app.post(
     "/lines",
@@ -480,7 +529,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # React app's origin
+    allow_origins=[f"http://{HOST_IP_ORIGIN}:3000"],  # React app's origin
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
