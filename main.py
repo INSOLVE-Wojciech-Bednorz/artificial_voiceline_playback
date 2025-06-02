@@ -18,7 +18,7 @@ from voice_system import VoiceSystem, DEFAULT_CONFIG, _get_nested_value, AUDIO_D
 from fastapi.staticfiles import StaticFiles
 # Import StaticFiles to serve static content (CSS, JS, images) via HTTP endpoints in FastAPI
 
-HOST_IP_ORIGIN = "localhost"
+HOST_IP_ORIGIN = "CHANGE_ME"
 
 
 # --- Logging Setup ---
@@ -134,6 +134,66 @@ async def get_line_audio_file(
     except Exception as e:
         logger.error(f"Error serving audio file {file_path} for line ID {line_id}: {e}", exc_info=True)
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Could not serve audio file: {str(e)}")
+
+
+@app.post(
+    "/lines/{line_id}/play",
+    response_model=models.StatusResponse,
+    summary="Manually Play a Voice Line",
+    tags=["Voice Lines"],
+    responses={
+        200: {"model": models.StatusResponse, "description": "Voice line played successfully"},
+        404: {"model": models.ErrorDetail, "description": "Line not found or audio file missing"},
+        500: {"model": models.ErrorDetail, "description": "Internal Server Error"},
+        503: {"model": models.ErrorDetail, "description": "Audio playback service unavailable"}
+    }
+)
+async def play_voice_line_manually(
+    line_id: int = F_path(..., description="The ID of the line to play.", ge=1),
+    vs: VoiceSystem = Depends(get_voice_system)
+):
+    """
+    Manually plays a specific voice line on the server.
+    This will play the audio through the server's audio system with all effects and processing
+    (compression, ducking, etc.) just like when the scheduler plays lines automatically.
+    """
+    if line_id <= 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Line ID must be a positive integer.")
+    
+    # Check if the line exists
+    line = vs.get_line_by_id(line_id)
+    if not line:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Voice line with ID {line_id} not found.")
+
+    filename = line.get('filename')
+    if not filename:
+        logger.error(f"Line ID {line_id} found, but has no associated filename.")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audio filename missing for line ID {line_id}.")
+
+    # Check if the audio file exists
+    file_path = AUDIO_DIR / filename
+    if not file_path.is_file():
+        logger.error(f"Audio file '{filename}' for line ID {line_id} not found at path: {file_path}")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Audio file for line ID {line_id} not found on server.")
+
+    try:
+        # Use the voice system's play_audio method to play with all effects
+        success, message = vs.play_audio(filename)
+        
+        if success:
+            logger.info(f"Successfully played voice line ID {line_id} manually: '{line.get('text', '')[:50]}...'")
+            return models.StatusResponse(
+                status="success", 
+                message=f"Successfully played voice line #{line_id}: {message}"
+            )
+        else:
+            # play_audio failed
+            logger.error(f"Failed to play voice line ID {line_id}: {message}")
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=f"Audio playback failed: {message}")
+            
+    except Exception as e:
+        logger.error(f"Error playing voice line {line_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"An internal error occurred while playing the audio: {str(e)}")
 
 
 @app.post(
