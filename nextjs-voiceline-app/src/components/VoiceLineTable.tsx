@@ -121,13 +121,13 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
             <tr key={line.id} className="hover:bg-gray-50 group">
               <td className="whitespace-nowrap">
                 <div className="ps-6 py-3">
-                  <label htmlFor={`checkbox-${line.id}`} className="flex">
+                  <label htmlFor={`checkbox-${line.id}`} className="flex cursor-pointer">
                     <input 
                       id={`checkbox-${line.id}`}
                       type="checkbox"
                       checked={selectedIds.includes(line.id)}
                       onChange={(e) => onToggleSelect(line.id, e)}
-                      className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none"
+                      className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
                     />
                     <span className="sr-only">Checkbox</span>
                   </label>
@@ -135,7 +135,19 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
               </td>
               
               <td className="whitespace-nowrap">
-                <div className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3">
+                <div 
+                  className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // Toggle the checkbox for this line
+                    const checkbox = document.getElementById(`checkbox-${line.id}`) as HTMLInputElement;
+                    if (checkbox) {
+                      checkbox.checked = !checkbox.checked;
+                      const event = new Event('change', { bubbles: true });
+                      checkbox.dispatchEvent(event);
+                    }
+                  }}
+                >
                   <span className="text-sm font-medium text-gray-800">{line.id}</span>
                 </div>
               </td>

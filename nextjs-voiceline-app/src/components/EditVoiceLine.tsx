@@ -148,106 +148,125 @@ const EditVoiceLine: React.FC<EditVoiceLineProps> = ({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-        <div className="bg-white rounded-xl p-6 w-full max-w-md relative animate-fadeIn">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl relative animate-fadeIn max-h-[90vh] flex flex-col">
           <button 
             onClick={handleCloseModal}
-            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
             type="button"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
           
-          <h2 className="text-xl font-bold mb-4">Edytuj linię głosową #{lineId}</h2>
-          
-          {/* Status indicator and toggle button */}
-          <div className="flex items-center mb-6 gap-2">
-            <div className={`px-2 py-1 rounded-md text-xs font-medium ${
-              active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              {active ? 'Aktywna' : 'Nieaktywna'}
+          {/* Header */}
+          <div className="px-6 py-4 border-b border-gray-200">
+            <div className="flex items-center gap-3">
+              <h2 className="text-xl font-semibold text-gray-900">Edytuj linię głosową #{lineId}</h2>
+              <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+                active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+              }`}>
+                {active ? 'Aktywna' : 'Nieaktywna'}
+              </div>
             </div>
-            
-            <button
-              type="button"
-              onClick={handleToggleActive}
-              disabled={toggleLoading}
-              className={`flex items-center text-xs px-3 py-1 rounded-md transition-colors ${
-                active 
-                  ? 'bg-amber-500 hover:bg-amber-600 text-white' 
-                  : 'bg-green-600 hover:bg-green-700 text-white'
-              }`}
-            >
-              {toggleLoading ? (
-                <svg className="animate-spin h-3 w-3 mr-1" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              ) : (
-                active ? 'Dezaktywuj' : 'Aktywuj'
-              )}
-            </button>
-
-            <button
-              type="button"
-              onClick={initiateDelete}
-              disabled={toggleLoading || loading}
-              className="flex items-center text-xs px-3 py-1 ml-auto rounded-md transition-colors bg-red-600 hover:bg-red-700 text-white"
-            >
-              Usuń
-            </button>
           </div>
           
-          <form onSubmit={handleSubmit}>
-            <div className="mb-4">
-              <label htmlFor="voiceLineText" className="block text-sm font-medium text-gray-700 mb-1">
+          {/* Content */}
+          <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+            <div className="px-6 py-4 flex-1 flex flex-col min-h-0">
+              <label htmlFor="voiceLineText" className="block text-sm font-medium text-gray-700 mb-3">
                 Tekst linii głosowej
               </label>
               <textarea
                 id="voiceLineText"
                 value={text}
                 onChange={(e) => setText(e.target.value)}
-                rows={4}
-                className="w-full border border-gray-300 rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Wprowadź nowy tekst dla linii głosowej..."
+                className="flex-1 w-full border border-gray-300 rounded-lg p-4 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-sm leading-relaxed min-h-[300px]"
+                placeholder="Wprowadź tekst dla linii głosowej..."
                 disabled={loading}
               ></textarea>
             </div>
             
             {error && (
-              <ApiErrorHandler 
-                error={error} 
-                onDismiss={() => setError(null)} 
-              />
+              <div className="px-6 pb-4">
+                <ApiErrorHandler 
+                  error={error} 
+                  onDismiss={() => setError(null)} 
+                />
+              </div>
             )}
             
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={handleCloseModal}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100"
-                disabled={loading}
-              >
-                Anuluj
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300"
-                disabled={loading}
-              >
-                {loading ? (
-                  <div className="flex items-center">
-                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            {/* Footer with buttons */}
+            <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+              <div className="flex items-center justify-between">
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleToggleActive}
+                    disabled={toggleLoading}
+                    className={`flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 ${
+                      active 
+                        ? 'bg-amber-500 hover:bg-amber-600 text-white shadow-md hover:shadow-lg' 
+                        : 'bg-green-600 hover:bg-green-700 text-white shadow-md hover:shadow-lg'
+                    } ${toggleLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {toggleLoading ? (
+                      <svg className="animate-spin h-4 w-4 mr-2" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    ) : null}
+                    {active ? 'Dezaktywuj' : 'Aktywuj'}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={initiateDelete}
+                    disabled={toggleLoading || loading}
+                    className="flex items-center px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 bg-red-600 hover:bg-red-700 text-white shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                     </svg>
-                    Aktualizacja...
-                  </div>
-                ) : 'Zapisz zmiany'}
-              </button>
+                    Usuń
+                  </button>
+                </div>
+                
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={handleCloseModal}
+                    className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium text-sm transition-colors"
+                    disabled={loading}
+                  >
+                    Anuluj
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 font-medium text-sm transition-all duration-200 shadow-md hover:shadow-lg"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <div className="flex items-center">
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Zapisywanie...
+                      </div>
+                    ) : (
+                      <>
+                        <svg className="w-4 h-4 mr-2 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        Zapisz zmiany
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
             </div>
           </form>
         </div>

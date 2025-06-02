@@ -218,19 +218,17 @@ const VoiceLinesList: React.FC = () => {
                   onAddClick={() => setAddModalOpen(true)}
                 />
 
-                {/* Bulk Actions moved to the top */}
-                {selectedIds.length > 0 && (
-                  <div className="px-6 py-3 border-t border-gray-200">
-                    <BulkActions 
-                      selectedIds={selectedIds} 
-                      onActionComplete={() => {
-                        refreshVoiceLines();
-                        handleClearSelection();
-                      }}
-                      onClearSelection={handleClearSelection} 
-                    />
-                  </div>
-                )}
+                {/* Bulk Actions - zawsze widoczne */}
+                <div className="px-6 py-3 border-t border-gray-200">
+                  <BulkActions 
+                    selectedIds={selectedIds} 
+                    onActionComplete={() => {
+                      refreshVoiceLines();
+                      handleClearSelection();
+                    }}
+                    onClearSelection={handleClearSelection} 
+                  />
+                </div>
 
                 {/* Voice Lines Table */}
                 <VoiceLineTable

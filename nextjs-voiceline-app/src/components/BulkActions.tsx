@@ -45,6 +45,8 @@ const BulkActions: React.FC<BulkActionsProps> = ({
     setShowConfirmation(true);
   };
 
+  const hasSelection = selectedIds.length > 0;
+
   // Function to delete selected voice lines after confirmation
   const confirmDelete = async () => {
     setLoading(true);
@@ -74,10 +76,18 @@ const BulkActions: React.FC<BulkActionsProps> = ({
           </div>
         )}
         
+        <span className={`text-sm ${hasSelection ? 'text-gray-700' : 'text-gray-400'}`}>
+          {hasSelection ? `Zaznaczono: ${selectedIds.length}` : 'Brak zaznaczenia'}
+        </span>
+        
         <button
           onClick={() => handleToggleActive(true)}
-          disabled={loading}
-          className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50"
+          disabled={loading || !hasSelection}
+          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+            hasSelection 
+              ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 focus:bg-gray-50' 
+              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+          } disabled:opacity-50 disabled:pointer-events-none`}
           data-action="activate"
         >
           Aktywuj
@@ -85,8 +95,12 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         
         <button
           onClick={() => handleToggleActive(false)}
-          disabled={loading}
-          className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-800 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50"
+          disabled={loading || !hasSelection}
+          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+            hasSelection 
+              ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 focus:bg-gray-50' 
+              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+          } disabled:opacity-50 disabled:pointer-events-none`}
           data-action="deactivate"
         >
           Dezaktywuj
@@ -94,8 +108,12 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         
         <button
           onClick={initiateDelete}
-          disabled={loading}
-          className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-red-200 bg-white text-red-600 shadow-sm hover:bg-red-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-red-50"
+          disabled={loading || !hasSelection}
+          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+            hasSelection 
+              ? 'border-red-200 bg-white text-red-600 hover:bg-red-50 focus:bg-red-50' 
+              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+          } disabled:opacity-50 disabled:pointer-events-none`}
           data-action="remove"
         >
           Usuń
@@ -103,8 +121,12 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         
         <button
           onClick={onClearSelection}
-          disabled={loading}
-          className="py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border border-gray-200 bg-white text-gray-600 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:pointer-events-none focus:outline-hidden focus:bg-gray-50"
+          disabled={loading || !hasSelection}
+          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+            hasSelection 
+              ? 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 focus:bg-gray-50' 
+              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+          } disabled:opacity-50 disabled:pointer-events-none`}
         >
           Anuluj
         </button>
