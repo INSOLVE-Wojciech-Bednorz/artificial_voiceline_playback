@@ -25,6 +25,7 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
   sortDirection = 'desc',
   onSort
 }) => {
+
   if (lines.length === 0) {
     return (
       <div className="text-center p-8">

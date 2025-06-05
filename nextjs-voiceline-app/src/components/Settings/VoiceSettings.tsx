@@ -1,5 +1,6 @@
 import React from 'react';
 import InfoTooltip from '../ui/InfoTooltip';
+import SettingsSlider from './SettingsSlider';
 
 interface VoiceSettingsProps {
   settings: {
@@ -100,16 +101,14 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({ settings, onChange }) => 
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="stability"
               name="stability"
-              min="0"
-              max="1"
-              step="0.01"
+              min={0}
+              max={1}
+              step={0.01}
               value={settings.stability}
               onChange={handleInputChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -130,16 +129,14 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({ settings, onChange }) => 
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="similarity"
               name="similarity"
-              min="0"
-              max="1"
-              step="0.01"
+              min={0}
+              max={1}
+              step={0.01}
               value={settings.similarity}
               onChange={handleInputChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -160,16 +157,14 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({ settings, onChange }) => 
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="style"
               name="style"
-              min="0"
-              max="1"
-              step="0.01"
+              min={0}
+              max={1}
+              step={0.01}
               value={settings.style}
               onChange={handleInputChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -190,16 +185,14 @@ const VoiceSettings: React.FC<VoiceSettingsProps> = ({ settings, onChange }) => 
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="speed"
               name="speed"
-              min="0.5"
-              max="2"
-              step="0.01"
+              min={0.5}
+              max={2}
+              step={0.01}
               value={settings.speed}
               onChange={handleInputChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0.5</span>

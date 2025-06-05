@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import InfoTooltip from '../ui/InfoTooltip';
+import SettingsSlider from './SettingsSlider';
 
 interface CompressionSettings {
   threshold: number;
@@ -67,16 +68,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="master"
               name="master"
-              min="0"
-              max="2"
-              step="0.01"
+              min={0}
+              max={2}
+              step={0.01}
               value={settings.master}
               onChange={handleSliderChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -97,16 +96,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="radio"
               name="radio"
-              min="0"
-              max="1"
-              step="0.01"
+              min={0}
+              max={1}
+              step={0.01}
               value={settings.radio}
               onChange={handleSliderChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -127,16 +124,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="ducking"
               name="ducking"
-              min="0"
-              max="1"
-              step="0.01"
+              min={0}
+              max={1}
+              step={0.01}
               value={settings.ducking}
               onChange={handleSliderChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -157,16 +152,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                 />
               </span>
             </div>
-            <input
-              type="range"
+            <SettingsSlider
               id="voice"
               name="voice"
-              min="0"
-              max="2"
-              step="0.01"
+              min={0}
+              max={2}
+              step={0.01}
               value={settings.voice}
               onChange={handleSliderChange}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
             />
             <div className="flex justify-between text-xs text-gray-500 mt-1">
               <span>0</span>
@@ -211,16 +204,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                     />
                   </span>
                 </div>
-                <input
-                  type="range"
+                <SettingsSlider
                   id="threshold"
                   name="threshold"
-                  min="-60"
-                  max="0"
-                  step="0.1"
+                  min={-60}
+                  max={0}
+                  step={0.1}
                   value={settings.compression.threshold}
                   onChange={handleCompressionChange}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>-60 dB</span>
@@ -241,16 +232,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                     />
                   </span>
                 </div>
-                <input
-                  type="range"
+                <SettingsSlider
                   id="ratio"
                   name="ratio"
-                  min="1.1"
-                  max="20"
-                  step="0.1"
+                  min={1.1}
+                  max={20}
+                  step={0.1}
                   value={settings.compression.ratio}
                   onChange={handleCompressionChange}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>1.1:1</span>
@@ -271,16 +260,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                     />
                   </span>
                 </div>
-                <input
-                  type="range"
+                <SettingsSlider
                   id="attack"
                   name="attack"
-                  min="0.1"
-                  max="100"
-                  step="0.1"
+                  min={0.1}
+                  max={100}
+                  step={0.1}
                   value={settings.compression.attack}
                   onChange={handleCompressionChange}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>0.1 ms</span>
@@ -301,16 +288,14 @@ const VolumeSettings: React.FC<VolumeSettingsProps> = ({ settings, onChange }) =
                     />
                   </span>
                 </div>
-                <input
-                  type="range"
+                <SettingsSlider
                   id="release"
                   name="release"
-                  min="1"
-                  max="1000"
-                  step="1"
+                  min={1}
+                  max={1000}
+                  step={1}
                   value={settings.compression.release}
                   onChange={handleCompressionChange}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
                   <span>1 ms</span>
