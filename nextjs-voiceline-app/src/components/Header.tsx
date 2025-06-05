@@ -25,8 +25,8 @@ const Header: React.FC = () => {
     const isLinkActive = (path: string) => pathname === path;
 
     // Classes for active and inactive links
-    const activeLinkClasses = "py-0.5 md:py-3 px-4 md:px-1 border-s-2 md:border-s-0 md:border-b-2 border-blue-600 font-medium text-blue-600 focus:outline-hidden";
-    const inactiveLinkClasses = "py-0.5 md:py-3 px-4 md:px-1 border-s-2 md:border-s-0 md:border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-600 transition-colors focus:outline-hidden";
+    const activeLinkClasses = "py-0.5 md:py-3 px-4 md:px-1 border-s-2 md:border-s-0 md:border-b-2 border-blue-600 font-medium text-blue-600 focus:outline-hidden transition-all duration-200 relative";
+    const inactiveLinkClasses = "py-0.5 md:py-3 px-4 md:px-1 border-s-2 md:border-s-0 md:border-b-2 border-transparent text-gray-500 hover:text-blue-600 hover:border-blue-600 transition-all duration-200 focus:outline-hidden relative hover:bg-blue-50/50 rounded-lg";
 
     // Function handling navigation with unsaved changes check
     const handleNavigation = useCallback((e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
@@ -88,23 +88,23 @@ const Header: React.FC = () => {
 
     return (
         <header className="sticky top-0 inset-x-0 flex flex-wrap md:justify-start md:flex-nowrap z-50 w-full text-sm">
-            <nav className={`mt-4 relative max-w-6xl w-full bg-white border border-gray-200 ${isMenuOpen ? 'rounded-2xl' : 'rounded-full'} mx-2 py-2.5 md:flex md:items-center md:justify-between md:py-0 md:px-4 md:mx-auto`}>
+            <nav className={`mt-4 relative max-w-6xl w-full bg-white/90 backdrop-blur-md border border-gray-200/60 shadow-lg shadow-gray-200/30 ${isMenuOpen ? 'rounded-2xl' : 'rounded-full'} mx-2 py-2.5 md:flex md:items-center md:justify-between md:py-0 md:px-4 md:mx-auto transition-all duration-300 hover:shadow-xl hover:shadow-gray-200/40`}>
                 <div className="px-4 md:px-0 flex justify-between items-center">
                     <div className="flex items-center">
                         {/* Logo */}
                         <a 
-                          className="flex-none rounded-md text-xl inline-block font-semibold focus:outline-hidden focus:opacity-80" 
+                          className="flex-none rounded-md text-xl inline-block font-semibold focus:outline-hidden focus:opacity-80 transition-all duration-200 hover:scale-105" 
                           href="/" 
                           onClick={(e) => handleNavigation(e, '/')}
                           aria-label="Radio"
                         >
                             <div className="flex items-center">
-                                <span className="mr-2 text-3xl text-black-600">
+                                <span className="mr-2 text-3xl text-blue-600 transition-colors duration-200 hover:text-blue-700">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="size-6">
                                         <path strokeLinecap="round" strokeLinejoin="round" d="m3.75 7.5 16.5-4.125M12 6.75c-2.708 0-5.363.224-7.948.655C2.999 7.58 2.25 8.507 2.25 9.574v9.176A2.25 2.25 0 0 0 4.5 21h15a2.25 2.25 0 0 0 2.25-2.25V9.574c0-1.067-.75-1.994-1.802-2.169A48.329 48.329 0 0 0 12 6.75Zm-1.683 6.443-.005.005-.006-.005.006-.005.005.005Zm-.005 2.127-.005-.006.005-.005.005.005-.005.005Zm-2.116-.006-.005.006-.006-.006.005-.005.006.005Zm-.005-2.116-.006-.005.006-.005.005.005-.005.005ZM9.255 10.5v.008h-.008V10.5h.008Zm3.249 1.88-.007.004-.003-.007.006-.003.004.006Zm-1.38 5.126-.003-.006.006-.004.004.007-.006.003Zm.007-6.501-.003.006-.007-.003.004-.007.006.004Zm1.37 5.129-.007-.004.004-.006.006.003-.004.007Zm.504-1.877h-.008v-.007h.008v.007ZM9.255 18v.008h-.008V18h.008Zm-3.246-1.87-.007.004L6 16.127l.006-.003.004.006Zm1.366-5.119-.004-.006.006-.004.004.007-.006.003ZM7.38 17.5l-.003.006-.007-.003.004-.007.006.004Zm-1.376-5.116L6 12.38l.003-.007.007.004-.004.007Zm-.5 1.873h-.008v-.007h.008v.007ZM17.25 12.75a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Zm0 4.5a.75.75 0 1 1 0-1.5.75.75 0 0 1 0 1.5Z" />
                                     </svg>
                                 </span>
-                                <span className="font-bold">RADIO</span>
+                                <span className="font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">RADIO</span>
                             </div>
                         </a>
                         {/* End Logo */}
@@ -114,7 +114,7 @@ const Header: React.FC = () => {
                         {/* Toggle Button */}
                         <button 
                             type="button" 
-                            className="flex justify-center items-center size-7 border border-gray-200 text-gray-500 rounded-full hover:bg-gray-200 focus:outline-hidden focus:bg-gray-200"
+                            className="flex justify-center items-center size-7 border border-gray-200/60 text-gray-500 rounded-full hover:bg-gray-100/80 focus:outline-hidden focus:bg-gray-100/80 transition-all duration-200 hover:scale-105 hover:shadow-md"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                             aria-expanded={isMenuOpen}
                             aria-controls="navbar-menu"

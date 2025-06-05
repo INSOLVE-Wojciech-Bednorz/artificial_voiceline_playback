@@ -69,24 +69,24 @@ const BulkActions: React.FC<BulkActionsProps> = ({
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3 p-4 rounded-xl bg-white/70 backdrop-blur-sm border border-white/20 shadow-lg">
         {error && (
-          <div className="text-red-500 text-sm mr-2">
+          <div className="text-red-600 text-sm mr-2 px-3 py-1 bg-red-50/80 backdrop-blur-sm rounded-lg border border-red-200/50">
             {error}
           </div>
         )}
         
-        <span className={`text-sm ${hasSelection ? 'text-gray-700' : 'text-gray-400'}`}>
+        <span className={`text-sm font-medium ${hasSelection ? 'text-gray-700' : 'text-gray-400'} transition-colors duration-200`}>
           {hasSelection ? `Zaznaczono: ${selectedIds.length}` : 'Brak zaznaczenia'}
         </span>
         
         <button
           onClick={() => handleToggleActive(true)}
           disabled={loading || !hasSelection}
-          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+          className={`py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg backdrop-blur-sm transition-all duration-200 ${
             hasSelection 
-              ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 focus:bg-gray-50' 
-              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+              ? 'bg-green-500/90 text-white hover:bg-green-600/90 hover:scale-105 focus:bg-green-600/90 focus:ring-2 focus:ring-green-300/50 shadow-lg hover:shadow-xl' 
+              : 'bg-gray-100/80 text-gray-400 cursor-not-allowed'
           } disabled:opacity-50 disabled:pointer-events-none`}
           data-action="activate"
         >
@@ -96,10 +96,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         <button
           onClick={() => handleToggleActive(false)}
           disabled={loading || !hasSelection}
-          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+          className={`py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg backdrop-blur-sm transition-all duration-200 ${
             hasSelection 
-              ? 'border-gray-200 bg-white text-gray-800 hover:bg-gray-50 focus:bg-gray-50' 
-              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+              ? 'bg-orange-500/90 text-white hover:bg-orange-600/90 hover:scale-105 focus:bg-orange-600/90 focus:ring-2 focus:ring-orange-300/50 shadow-lg hover:shadow-xl' 
+              : 'bg-gray-100/80 text-gray-400 cursor-not-allowed'
           } disabled:opacity-50 disabled:pointer-events-none`}
           data-action="deactivate"
         >
@@ -109,10 +109,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         <button
           onClick={initiateDelete}
           disabled={loading || !hasSelection}
-          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+          className={`py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg backdrop-blur-sm transition-all duration-200 ${
             hasSelection 
-              ? 'border-red-200 bg-white text-red-600 hover:bg-red-50 focus:bg-red-50' 
-              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+              ? 'bg-red-500/90 text-white hover:bg-red-600/90 hover:scale-105 focus:bg-red-600/90 focus:ring-2 focus:ring-red-300/50 shadow-lg hover:shadow-xl' 
+              : 'bg-gray-100/80 text-gray-400 cursor-not-allowed'
           } disabled:opacity-50 disabled:pointer-events-none`}
           data-action="remove"
         >
@@ -122,10 +122,10 @@ const BulkActions: React.FC<BulkActionsProps> = ({
         <button
           onClick={onClearSelection}
           disabled={loading || !hasSelection}
-          className={`py-1.5 px-2 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg border shadow-sm focus:outline-hidden ${
+          className={`py-2 px-4 inline-flex items-center gap-x-2 text-sm font-medium rounded-lg backdrop-blur-sm transition-all duration-200 ${
             hasSelection 
-              ? 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 focus:bg-gray-50' 
-              : 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+              ? 'bg-gray-500/90 text-white hover:bg-gray-600/90 hover:scale-105 focus:bg-gray-600/90 focus:ring-2 focus:ring-gray-300/50 shadow-lg hover:shadow-xl' 
+              : 'bg-gray-100/80 text-gray-400 cursor-not-allowed'
           } disabled:opacity-50 disabled:pointer-events-none`}
         >
           Anuluj

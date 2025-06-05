@@ -209,7 +209,22 @@ const VoiceLinesList: React.FC = () => {
         <div className="flex flex-col">
           <div className="-m-1.5 overflow-x-auto">
             <div className="p-1.5 min-w-full inline-block align-middle">
-              <div className="bg-white border border-gray-200 rounded-xl shadow-2xs overflow-hidden">
+              <div className="bg-white/80 backdrop-blur-md border border-gray-200/60 rounded-xl shadow-xl shadow-gray-200/40 overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-gray-200/50 animate-slideIn">
+                {/* Header Section */}
+                <div className="px-6 py-6 bg-gradient-to-r from-gray-50/80 to-blue-50/60 border-b border-gray-200/60">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    <div>
+                      <h1 className="text-2xl font-bold text-gray-900 mb-1">Linie głosowe</h1>
+                      <p className="text-sm text-gray-600">Zarządzaj liniami głosowymi dla swojego systemu.</p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="text-sm text-gray-500">
+                        <span className="font-medium text-gray-700">{filteredLines.length}</span> wyników
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Search and Filter Bar */}
                 <SearchAndFilterBar 
                   onSearch={handleSearch}
@@ -218,8 +233,8 @@ const VoiceLinesList: React.FC = () => {
                   onAddClick={() => setAddModalOpen(true)}
                 />
 
-                {/* Bulk Actions - zawsze widoczne */}
-                <div className="px-6 py-3 border-t border-gray-200">
+                {/* Bulk Actions */}
+                <div className="px-6 py-3 border-t border-gray-200/60 bg-gray-50/30">
                   <BulkActions 
                     selectedIds={selectedIds} 
                     onActionComplete={() => {
@@ -242,15 +257,6 @@ const VoiceLinesList: React.FC = () => {
                   sortDirection={sortDirection}
                   onSort={handleSort}
                 />
-
-                {/* Table Footer */}
-                <div className="px-6 py-4 grid gap-3 md:flex md:justify-between md:items-center border-t border-gray-200">
-                  <div>
-                    <p className="text-sm text-gray-600">
-                      <span className="font-semibold text-gray-800">{filteredLines.length}</span> wyników
-                    </p>
-                  </div>
-                </div>
               </div>
             </div>
           </div>

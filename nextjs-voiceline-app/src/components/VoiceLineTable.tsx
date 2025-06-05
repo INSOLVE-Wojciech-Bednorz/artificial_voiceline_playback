@@ -62,7 +62,7 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200 table-fixed">
+      <table className="min-w-full divide-y divide-gray-200/60 table-fixed">
         <colgroup>
           <col className="w-12" />
           <col className="w-16" />
@@ -70,13 +70,13 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
           <col className="w-28" />
           <col className="w-20" />
         </colgroup>
-        <thead className="bg-gray-50">
+        <thead className="bg-gradient-to-r from-gray-50/80 to-blue-50/40">
           <tr>
             <th scope="col" className="ps-6 py-3 text-start">
               <label htmlFor="select-all-checkbox" className="flex">
                 <input 
                   type="checkbox" 
-                  className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none" 
+                  className="shrink-0 border-gray-300/60 rounded text-blue-600 focus:ring-blue-500/20 focus:ring-2 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none transition-all duration-200" 
                   id="select-all-checkbox" 
                   checked={selectAll}
                   onChange={onSelectAll}
@@ -87,7 +87,7 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
 
             <th 
               scope="col" 
-              className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 text-start cursor-pointer"
+              className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 text-start cursor-pointer hover:bg-gray-100/50 transition-colors duration-150 rounded-lg"
               onClick={() => onSort && onSort('id')}
             >
               <div className="flex items-center gap-x-2">
@@ -117,9 +117,9 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
           </tr>
         </thead>
 
-        <tbody className="divide-y divide-gray-200">
-          {lines.map((line) => (
-            <tr key={line.id} className="hover:bg-gray-50 group">
+        <tbody className="divide-y divide-gray-200/60 bg-white/50">
+          {lines.map((line, index) => (
+            <tr key={line.id} className="hover:bg-blue-50/30 hover:shadow-sm group transition-all duration-200 border-l-4 border-transparent hover:border-blue-400/30">
               <td className="whitespace-nowrap">
                 <div className="ps-6 py-3">
                   <label htmlFor={`checkbox-${line.id}`} className="flex cursor-pointer">
@@ -128,7 +128,7 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
                       type="checkbox"
                       checked={selectedIds.includes(line.id)}
                       onChange={(e) => onToggleSelect(line.id, e)}
-                      className="shrink-0 border-gray-300 rounded-sm text-blue-600 focus:ring-blue-500 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+                      className="shrink-0 border-gray-300/60 rounded text-blue-600 focus:ring-blue-500/20 focus:ring-2 checked:border-blue-500 disabled:opacity-50 disabled:pointer-events-none cursor-pointer transition-all duration-200"
                     />
                     <span className="sr-only">Checkbox</span>
                   </label>
@@ -149,13 +149,13 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
                     }
                   }}
                 >
-                  <span className="text-sm font-medium text-gray-800">{line.id}</span>
+                  <span className="text-sm font-medium text-gray-800 group-hover:text-blue-700 transition-colors duration-200">{line.id}</span>
                 </div>
               </td>
               
               <td>
                 <div className="px-6 py-3">
-                  <div className="group-hover:line-clamp-none line-clamp-2 text-sm text-gray-800 break-words">
+                  <div className="group-hover:line-clamp-none line-clamp-2 text-sm text-gray-800 break-words leading-relaxed">
                     {line.text}
                   </div>
                 </div>
@@ -170,7 +170,7 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
               <td className="whitespace-nowrap text-right">
                 <div className="px-6 py-1.5">
                   <button 
-                    className="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline focus:outline-hidden focus:underline font-medium cursor-pointer" 
+                    className="inline-flex items-center gap-x-1 text-sm text-blue-600 decoration-2 hover:underline focus:outline-hidden focus:underline font-medium cursor-pointer hover:text-blue-700 transition-colors duration-200 px-2 py-1 rounded hover:bg-blue-50/50" 
                     onClick={() => onEdit(line.id)}
                   >
                     Edytuj

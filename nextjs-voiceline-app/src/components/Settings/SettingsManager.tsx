@@ -898,7 +898,7 @@ const SettingsManager = () => {
       {/* Confirmation Modal with improved design */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-          <div className="flex items-center justify-center min-h-screen p-4 text-center">
+          <div className="flex items-center justify-center min-h-screen p-4 text-center z-[9999]">
             {/* Backdrop */}
             <div className="fixed inset-0 bg-gray-900/75 transition-opacity backdrop-blur-sm" aria-hidden="true"></div>
             
