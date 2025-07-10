@@ -1,19 +1,22 @@
 import json
+import logging
 import math
+import os
 import random
+import threading
 import time
 import traceback
-import logging
-import threading
 from pathlib import Path
-from typing import List, Optional, Tuple, Dict, Any
+from typing import Any, Dict, List, Optional, Tuple
+
+import numpy as np
 import requests
 import vlc
 import yaml
-from pydub import AudioSegment, exceptions as pydub_exceptions
-from pydub.playback import play
-import numpy as np
+from pydub import AudioSegment
+from pydub import exceptions as pydub_exceptions
 from pydub.effects import high_pass_filter, low_pass_filter
+from pydub.playback import play
 
 CONFIG_FILE = Path('config.yaml')
 DATA_FILE = Path('voice_lines.json')
@@ -22,8 +25,12 @@ AUDIO_DIR.mkdir(exist_ok=True)
 RADIO_FILES_DIR = Path('radio_files')
 
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    level=logging.DEBUG,  # Change to DEBUG for more details
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("voice_system.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
 
@@ -104,10 +111,14 @@ class RadioPlayer:
         return True, "Radio stopped"
 
     def _load_radio_files(self):
-        path_str = _get_nested_value(self.config, ['radio', 'playlist'])
+        # In RadioPlayer._load_radio_files
+        path_str = os.path.abspath(_get_nested_value(self.config, ['radio', 'playlist']))
         if not path_str:
             return [], "No radio directory configured"
-        path = Path(path_str)
+
+        # Resolve relative paths
+        path = Path(path_str).resolve()
+        logger.info(f"[RADIO] Loading files from: {path}")        
         try:
             self.radio_files = [f for f in path.glob('*.mp3') if f.is_file()]
             if not self.radio_files:
@@ -117,6 +128,7 @@ class RadioPlayer:
         except Exception as e:
             return [], f"Error loading radio files: {e}"
 
+    # Updated RadioPlayer._run method
     def _run(self):
         while not self._stop_event.is_set():
             if not self.radio_files:
@@ -128,34 +140,75 @@ class RadioPlayer:
 
             file_path = random.choice(self.radio_files)
             self.current_file = file_path.name
-            logger.info(f"[RADIO] Now playing: {self.current_file}")
+            logger.info(f"[RADIO] Now playing: {self.current_file} (path: {file_path})")  # Add path logging
 
             if self.player:
                 self.player.release()
-            
+                self.player = None
+
             try:
+                # Create media with explicit path
                 media = self.vlc.media_new(str(file_path))
+                if not media:
+                    logger.error(f"[RADIO] Failed to create media for file: {file_path}")
+                    time.sleep(5)
+                    continue
+                    
                 self.player = self.vlc.media_player_new()
-                self.player.set_media(media)
-                media.release()
-                
-                vol = int(self.config['volumes']['radio'] * 100)
-                self.player.audio_set_volume(vol)
-                
-                if self.player.play() == -1:
-                    logger.error("[RADIO] Failed to start playback")
+                if not self.player:
+                    logger.error("[RADIO] Failed to create media player instance")
+                    media.release()
                     time.sleep(5)
                     continue
 
+                self.player.set_media(media)
+                media.release()
+
+                vol = int(self.config['volumes']['radio'] * 100)
+                self.player.audio_set_volume(vol)
+                logger.info(f"[RADIO] Volume set to {vol}%")
+
+                # Start playback
+                if self.player.play() == -1:
+                    logger.error("[RADIO] Failed to start playback")
+                    self.player.release()
+                    self.player = None
+                    time.sleep(5)
+                    continue
+
+                # Playback monitoring
                 while not self._stop_event.is_set():
                     time.sleep(0.5)
                     state = self.player.get_state()
-                    if state in [vlc.State.Ended, vl.State.Stopped, vlc.State.Error]:
+                    
+                    # Add state name logging for debugging
+                    state_name = {
+                        0: "NothingSpecial",
+                        1: "Opening",
+                        2: "Buffering",
+                        3: "Playing",
+                        4: "Paused",
+                        5: "Stopped",
+                        6: "Ended",
+                        7: "Error"
+                    }.get(state.value, f"Unknown({state.value})")
+                    
+                    logger.debug(f"[RADIO] Playback state: {state_name}")
+                    
+                    if state in [vlc.State.Ended, vlc.State.Stopped, vlc.State.Error]:
+                        if state == vlc.State.Error:
+                            logger.error(f"[RADIO] Playback error for file: {self.current_file}")
+                        else:
+                            logger.info(f"[RADIO] Playback finished: {self.current_file}")
                         break
 
             except Exception as e:
-                logger.error(f"[RADIO] Playback error: {e}")
+                logger.error(f"[RADIO] Playback error: {str(e)}", exc_info=True)
+                if self.player:
+                    self.player.release()
+                    self.player = None
                 time.sleep(5)
+
 
 class VoiceSystem:
     def __init__(self):
@@ -167,11 +220,16 @@ class VoiceSystem:
         self._stop_scheduler_event = threading.Event()
         self._scheduler_running = False
         
+        # In VoiceSystem __init__ (vlc initialization)
         try:
-            self._vlc_instance = vlc.Instance('--no-xlib --quiet')
+            # Add audio output specification for headless environments
+            vlc_args = ['--no-xlib', '--quiet', '--aout=alsa']  # Try different backends: alsa/pulse/file
+            self._vlc_instance = vlc.Instance(vlc_args)
             if self._vlc_instance:
                 self._radio_player = RadioPlayer(self._vlc_instance, self.config)
-            logger.info("VLC initialized")
+                logger.info(f"VLC initialized with arguments: {vlc_args}")
+            else:
+                logger.error("Failed to create VLC instance: instance is None")
         except Exception as e:
             logger.error(f"Failed to initialize VLC: {e}")
             self._vlc_instance = None
