@@ -22,9 +22,8 @@ from pydub.effects import high_pass_filter, low_pass_filter
 CONFIG_FILE = Path('config.yaml')
 DATA_FILE = Path('voice_lines.json')
 AUDIO_DIR = Path('audio_files')
-RADIO_FILES_DIR = Path('radio_files') # Default directory for radio music
-AUDIO_DIR.mkdir(exist_ok=True) # Ensure audio directory for voice lines exists
-RADIO_FILES_DIR.mkdir(exist_ok=True) # Ensure radio files directory exists
+AUDIO_DIR.mkdir(exist_ok=True) # Ensure audio directory exists
+RADIO_FILES_DIR = Path('radio_files') # New directory for radio MP3s
 
 # --- Logging Setup ---
 logging.basicConfig(
@@ -57,7 +56,7 @@ DEFAULT_CONFIG = {
         }
     },
     'radio': {
-        'playlist': str(RADIO_FILES_DIR), # Use directory path instead of playlist
+        'playlist': None,  # Now represents path to directory instead of PLS file
         'interval': 300
     },
     'distortion_simulation': {
@@ -83,22 +82,33 @@ def _get_nested_value(data: Dict, keys: List[str], default: Any = None) -> Any:
     except (KeyError, TypeError):
         return default
 
-# --- Audio Degradation Function (Unchanged) ---
+# --- Audio Degradation Function ---
 def degrade_audio(audio_segment: AudioSegment, distortion_config: Dict) -> AudioSegment:
+    """
+    Applies audio degradation effects based on the 'distortion_simulation' config.
+    """
     if not distortion_config.get('enabled', False):
         return audio_segment
+
     logger.debug("Applying distortion simulation effects...")
     degraded = audio_segment
+
     try:
+        # 1. Force mono conversion first
         if degraded.channels > 1:
             degraded = degraded.set_channels(1)
             logger.debug("Converted audio to mono.")
+
+        # 2. Sample rate reduction
         target_sr = int(distortion_config.get('sample_rate', degraded.frame_rate))
         if target_sr > 0 and target_sr < degraded.frame_rate:
              logger.debug(f"Reducing sample rate to {target_sr} Hz.")
              degraded = degraded.set_frame_rate(target_sr)
         elif target_sr <= 0:
              logger.warning(f"Invalid target sample rate ({target_sr}), skipping reduction.")
+
+
+        # Helper function to safely create AudioSegments from numpy arrays
         def create_audio_segment(samples, sample_width, frame_rate, channels):
             samples = np.nan_to_num(samples, nan=0.0, posinf=0.0, neginf=0.0)
             max_amp = 2**(sample_width * 8 - 1) - 1
@@ -106,29 +116,53 @@ def degrade_audio(audio_segment: AudioSegment, distortion_config: Dict) -> Audio
             samples = np.clip(samples, min_amp, max_amp)
             dtype = np.int16 if sample_width == 2 else np.int8
             samples_bytes = samples.astype(dtype).tobytes()
-            return AudioSegment(data=samples_bytes, sample_width=sample_width, frame_rate=frame_rate, channels=channels)
+            return AudioSegment(
+                data=samples_bytes,
+                sample_width=sample_width,
+                frame_rate=frame_rate,
+                channels=channels
+            )
+
+        # Convert to numpy array for manipulation
         current_sample_width = degraded.sample_width
         samples_np = np.array(degraded.get_array_of_samples(), dtype=np.float32)
         max_amplitude_float = float(2**(current_sample_width * 8 - 1) - 1)
+
+
+        # 3. Nonlinear distortion (Clipping)
         distortion_level = float(distortion_config.get('distortion', 0.0))
         if distortion_level > 0:
             logger.debug(f"Applying non-linear distortion: {distortion_level}")
-            gain_factor = 1.0 + distortion_level * 5
+            gain_factor = 1.0 + distortion_level * 5 # Amplify effect
             samples_np = np.clip(samples_np * gain_factor, -max_amplitude_float, max_amplitude_float)
+
+
+        # 4. Bandpass filtering
         low_freq = int(distortion_config.get('filter_low', 0))
         high_freq = int(distortion_config.get('filter_high', degraded.frame_rate / 2))
         if low_freq > 0 or high_freq < degraded.frame_rate / 2:
             logger.debug(f"Applying bandpass filter: Low={low_freq} Hz, High={high_freq} Hz")
+            # Need to convert back to AudioSegment for pydub filters
             temp_audio = create_audio_segment(samples_np, current_sample_width, degraded.frame_rate, 1)
             if low_freq > 0:
-                try: temp_audio = high_pass_filter(temp_audio, low_freq)
-                except Exception as filter_e: logger.warning(f"High-pass filter failed: {filter_e}")
+                try:
+                    temp_audio = high_pass_filter(temp_audio, low_freq)
+                except Exception as filter_e:
+                    logger.warning(f"High-pass filter failed: {filter_e}")
+            # Ensure high freq is valid before applying low pass
             if high_freq > 0 and high_freq < degraded.frame_rate / 2:
-                 try: temp_audio = low_pass_filter(temp_audio, high_freq)
-                 except Exception as filter_e: logger.warning(f"Low-pass filter failed: {filter_e}")
+                 try:
+                    temp_audio = low_pass_filter(temp_audio, high_freq)
+                 except Exception as filter_e:
+                    logger.warning(f"Low-pass filter failed: {filter_e}")
             else:
                  logger.warning(f"Invalid high frequency ({high_freq} Hz) for low-pass filter at sample rate {degraded.frame_rate} Hz. Skipping.")
+
+            # Convert back to numpy
             samples_np = np.array(temp_audio.get_array_of_samples(), dtype=np.float32)
+
+
+        # 5. Modulated noise
         noise_level = float(distortion_config.get('noise_level', 0.0))
         if noise_level > 0:
             logger.debug(f"Adding modulated noise: Level={noise_level}")
@@ -136,6 +170,9 @@ def degrade_audio(audio_segment: AudioSegment, distortion_config: Dict) -> Audio
             noise = np.random.normal(0, noise_amp, len(samples_np))
             modulation = np.sin(np.linspace(0, 20 * np.pi, len(samples_np))) * 0.5 + 0.5
             samples_np += noise * modulation
+
+
+        # 6. Bit crushing (Quantization)
         target_bit_depth = int(distortion_config.get('bit_depth', current_sample_width * 8))
         if 1 <= target_bit_depth < (current_sample_width * 8):
             logger.debug(f"Applying bit crushing to {target_bit_depth}-bit.")
@@ -143,6 +180,9 @@ def degrade_audio(audio_segment: AudioSegment, distortion_config: Dict) -> Audio
             normalized_samples = samples_np / max_amplitude_float
             quantized_samples = np.round(normalized_samples * (levels / 2 -1) )
             samples_np = (quantized_samples / (levels / 2 - 1)) * max_amplitude_float
+
+
+        # 7. Crackle effect
         crackle_intensity = float(distortion_config.get('crackle', 0.0))
         if crackle_intensity > 0:
             logger.debug(f"Applying crackle effect: Intensity={crackle_intensity}")
@@ -153,21 +193,36 @@ def degrade_audio(audio_segment: AudioSegment, distortion_config: Dict) -> Audio
                 crackle_len = random.randint(1, 3)
                 end_pos = min(pos + crackle_len, len(samples_np))
                 samples_np[pos:end_pos] += crackle_amp
+
+
+        # Convert back to AudioSegment using the helper
         degraded = create_audio_segment(samples_np, current_sample_width, degraded.frame_rate, 1)
+
+        # 8. Final resampling to a common rate (e.g., 44100 Hz) for playback consistency
         final_sr = 44100
         if degraded.frame_rate != final_sr:
             logger.debug(f"Resampling degraded audio to {final_sr} Hz.")
-            try: degraded = degraded.set_frame_rate(final_sr)
+            try:
+                degraded = degraded.set_frame_rate(final_sr)
             except Exception as e:
                 logger.error(f"Error during final resampling: {e}. Trying fallback creation.")
+                # Fallback: try to create directly if set_frame_rate fails
                 samples_np_final = np.array(degraded.get_array_of_samples(), dtype=np.float32)
-                try: degraded = create_audio_segment(samples_np_final, degraded.sample_width, final_sr, 1)
+                try:
+                     degraded = create_audio_segment(samples_np_final, degraded.sample_width, final_sr, 1)
                 except Exception as fb_e:
                      logger.error(f"Fallback resampling failed: {fb_e}. Returning audio at original rate {degraded.frame_rate} Hz.")
+                     # Recreate from original numpy array at original degraded rate if fallback also fails
                      degraded = create_audio_segment(samples_np, current_sample_width, degraded.frame_rate, 1)
+
+
+    except ValueError as ve:
+         logger.error(f"Value error during audio degradation (check config?): {ve}\n{traceback.format_exc()}")
+         return audio_segment # Return original on config value error
     except Exception as e:
         logger.error(f"Unexpected error during audio degradation: {e}\n{traceback.format_exc()}")
-        return audio_segment
+        return audio_segment # Return original on other errors
+
     logger.debug("Finished applying distortion simulation effects.")
     return degraded
 
@@ -181,10 +236,13 @@ class VoiceSystem:
         self.radio_volume = _get_nested_value(self.config, ['volumes', 'radio'], DEFAULT_CONFIG['volumes']['radio'])
         self.duck_volume = _get_nested_value(self.config, ['volumes', 'ducking'], DEFAULT_CONFIG['volumes']['ducking'])
         self.last_error = None
+        self._radio_files = []  # List to store radio mp3 file paths
+        self._current_radio_file = None  # Currently playing radio file
         self._scheduler_thread = None
         self._stop_scheduler_event = threading.Event()
         self._scheduler_running = False
         try:
+            # Initialize VLC instance once with options for headless/quiet operation
             self._vlc_instance = vlc.Instance('--no-xlib --quiet')
             logger.info("VLC instance initialized.")
         except Exception as e:
@@ -199,17 +257,21 @@ class VoiceSystem:
                 with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                     loaded_config = yaml.safe_load(f)
                 if isinstance(loaded_config, dict):
+                    # Deep merge loaded config with defaults to ensure all keys exist
                     merged_config = self._merge_configs(DEFAULT_CONFIG, loaded_config)
                     logger.info(f"Configuration loaded and merged from {CONFIG_FILE}")
                     return merged_config
                 else:
                     logger.warning(f"Invalid structure in {CONFIG_FILE}. Using default configuration and saving.")
-                    self._save_config(DEFAULT_CONFIG)
+                    self._save_config(DEFAULT_CONFIG) # Save defaults for user
                     return DEFAULT_CONFIG.copy()
             else:
                 logger.warning(f"{CONFIG_FILE} not found. Creating with default values.")
                 self._save_config(DEFAULT_CONFIG)
                 return DEFAULT_CONFIG.copy()
+        except (yaml.YAMLError, IOError, OSError) as e:
+            logger.error(f"Error loading/accessing config file {CONFIG_FILE}: {e}. Using default configuration.", exc_info=True)
+            return DEFAULT_CONFIG.copy()
         except Exception as e:
              logger.error(f"Unexpected error loading config: {e}. Using default configuration.", exc_info=True)
              return DEFAULT_CONFIG.copy()
@@ -218,146 +280,187 @@ class VoiceSystem:
         """Recursively merges loaded config into default config."""
         merged = default.copy()
         for key, value in loaded.items():
-            if key in merged and isinstance(value, dict) and isinstance(merged[key], dict):
-                merged[key] = self._merge_configs(merged[key], value)
-            elif value is not None:
-                merged[key] = value
+            if key in merged:
+                if isinstance(value, dict) and isinstance(merged[key], dict):
+                    merged[key] = self._merge_configs(merged[key], value)
+                elif value is not None: # Allow overriding with non-dict values, but not None unless default is None
+                    merged[key] = value
+            # If key not in default, maybe log a warning about unknown keys?
+            # else:
+            #    logger.warning(f"Ignoring unknown key '{key}' found in config file.")
         return merged
 
     def _save_config(self, config_data: Optional[Dict] = None):
         """Saves the provided or current configuration to the YAML file."""
         config_to_save = config_data if config_data is not None else self.config
         try:
+            # Remove internal/runtime state if it accidentally got added
+            config_to_save.pop('degradation', None) # Ensure this removed key stays removed
+
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:
                 yaml.safe_dump(config_to_save, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
             logger.info(f"Configuration saved to {CONFIG_FILE}")
+        except (yaml.YAMLError, IOError, OSError) as e:
+            logger.error(f"Error saving config file {CONFIG_FILE}: {e}", exc_info=True)
+            self.last_error = f"Błąd zapisu konfiguracji: {str(e)}"
         except Exception as e:
              logger.error(f"Unexpected error saving config: {e}", exc_info=True)
              self.last_error = f"Nieoczekiwany błąd zapisu konfiguracji: {str(e)}"
 
+
     def _load_lines(self) -> List[Dict]:
-        """
-        Loads voice lines from JSON and robustly reconciles with audio files on disk.
-        - Adds entries for new audio files.
-        - Disables and marks entries for missing audio files.
-        """
-        logger.info("Loading and reconciling voice lines...")
-        lines_from_json = []
-        if DATA_FILE.exists():
-            try:
-                with open(DATA_FILE, 'r', encoding='utf-8') as f:
-                    lines_from_json = json.load(f)
-                if not isinstance(lines_from_json, list):
-                    logger.warning(f"{DATA_FILE} does not contain a list. Starting fresh.")
-                    lines_from_json = []
-            except (json.JSONDecodeError, IOError) as e:
-                logger.error(f"Error reading {DATA_FILE}: {e}. Starting fresh.", exc_info=True)
-                lines_from_json = []
-
-        # --- Reconciliation ---
-        needs_resave = False
-        final_lines = []
-        json_filenames = {line.get('filename') for line in lines_from_json if line.get('filename')}
-        disk_filenames = {f.name for f in AUDIO_DIR.glob('*.mp3')}
-        max_id = max([line.get('id', 0) for line in lines_from_json] + [0])
-        missing_file_prefix = "(Brak pliku) "
-
-        # 1. Process existing JSON entries
-        for line in lines_from_json:
-            filename = line.get('filename')
-            if not filename or filename not in disk_filenames:
-                if not line.get('text', '').startswith(missing_file_prefix):
-                    line['text'] = missing_file_prefix + line.get('text', '')
-                    line['active'] = False
-                    logger.warning(f"File '{filename}' for line ID {line.get('id')} not found. Disabling and marking line.")
-                    needs_resave = True
-            final_lines.append(line)
-
-        # 2. Process new files found on disk
-        new_files = disk_filenames - json_filenames
-        if new_files:
-            logger.info(f"Found {len(new_files)} new audio files to add to the registry.")
-            for filename in sorted(list(new_files)): # Sort for deterministic ID assignment
-                max_id += 1
-                new_line = {
-                    'id': max_id,
-                    'text': f"[Automatycznie dodany plik: {filename}]",
-                    'filename': filename,
-                    'active': True
-                }
-                final_lines.append(new_line)
-                logger.info(f"Added new entry for '{filename}' with ID {max_id}.")
-            needs_resave = True
-
-        if needs_resave:
-            logger.info("Reconciliation complete. Saving updated voice lines list.")
-            self.lines = final_lines # Temporarily set for saving
-            self._save_lines() # This will save the sorted list
-        
-        logger.info(f"Loaded {len(final_lines)} synchronized voice lines.")
-        return sorted(final_lines, key=lambda x: x.get('id', 0))
-
-    def _save_lines(self):
-        """Saves the current voice lines to the JSON data file."""
+        """Loads voice lines from the JSON data file with validation."""
+        lines_data = []
         try:
-            lines_to_save = sorted(self.lines, key=lambda x: x.get('id', float('inf')))
-            with open(DATA_FILE, 'w', encoding='utf-8') as f:
-                json.dump(lines_to_save, f, indent=2, ensure_ascii=False)
-            logger.info(f"Voice lines saved to {DATA_FILE}")
+            if DATA_FILE.exists():
+                with open(DATA_FILE, 'r', encoding='utf-8') as f:
+                    try:
+                        lines_data = json.load(f)
+                    except json.JSONDecodeError as json_e:
+                         logger.error(f"Invalid JSON in {DATA_FILE}: {json_e}. Loading empty list.", exc_info=True)
+                         self.last_error = f"Błąd formatu JSON w pliku linii: {json_e}"
+                         return [] # Return empty on decode error
+
+                    # Validate basic structure and content
+                    if isinstance(lines_data, list):
+                         validated_lines = []
+                         seen_ids = set()
+                         needs_resave = False
+                         max_id = 0
+                         for i, item in enumerate(lines_data):
+                             if isinstance(item, dict) and all(k in item for k in ['id', 'text', 'filename', 'active']):
+                                 # Basic type checks
+                                 item_id = item.get('id')
+                                 item_text = item.get('text')
+                                 item_filename = item.get('filename')
+                                 item_active = item.get('active')
+
+                                 if not isinstance(item_id, int) or item_id <= 0 or item_id in seen_ids:
+                                     logger.warning(f"Invalid or duplicate ID found at index {i}: {item_id}. Skipping line.")
+                                     needs_resave = True
+                                     continue
+                                 if not isinstance(item_text, str) or not item_text:
+                                     logger.warning(f"Invalid or empty text found for ID {item_id}. Skipping line.")
+                                     needs_resave = True
+                                     continue
+                                 if not isinstance(item_filename, str) or not item_filename.endswith('.mp3'): # Basic check
+                                     logger.warning(f"Invalid filename found for ID {item_id}: {item_filename}. Skipping line.")
+                                     needs_resave = True
+                                     continue
+                                 if not isinstance(item_active, bool):
+                                      logger.warning(f"Invalid 'active' state for ID {item_id}. Defaulting to False.")
+                                      item['active'] = False # Correct the type
+                                      needs_resave = True
+
+                                 # Check if audio file actually exists
+                                 if not (AUDIO_DIR / item_filename).exists():
+                                      logger.warning(f"Audio file '{item_filename}' for ID {item_id} not found. Line kept but may fail playback.")
+                                      # Optionally deactivate or remove? For now, just warn.
+                                      # item['active'] = False
+                                      # needs_resave = True
+
+                                 validated_lines.append(item)
+                                 seen_ids.add(item_id)
+                                 max_id = max(max_id, item_id)
+
+                             else:
+                                 logger.warning(f"Invalid item structure at index {i} in {DATA_FILE}. Skipping.")
+                                 needs_resave = True
+
+                         # Optional: Re-index if IDs are not sequential or have gaps?
+                         # For now, just use the loaded (and validated) IDs.
+
+                         if needs_resave:
+                              logger.warning(f"Issues found in {DATA_FILE}. Resaving with validated/corrected lines.")
+                              self.lines = validated_lines # Temporarily set to save correct data
+                              self._save_lines() # Save the cleaned list
+
+                         logger.info(f"Loaded {len(validated_lines)} valid voice lines from {DATA_FILE}")
+                         return validated_lines
+                    else:
+                        logger.warning(f"Invalid data structure (not a list) in {DATA_FILE}. Initializing empty list.")
+                        self._save_lines([]) # Save empty list to fix file
+                        return []
+            else:
+                logger.info(f"{DATA_FILE} not found. Initializing empty list.")
+                return []
+        except (IOError, OSError) as e:
+            logger.error(f"Error reading/accessing voice lines file {DATA_FILE}: {e}. Returning empty list.", exc_info=True)
+            self.last_error = f"Błąd odczytu pliku linii: {str(e)}"
+            return []
         except Exception as e:
-            logger.error(f"Error saving voice lines file {DATA_FILE}: {e}", exc_info=True)
-            self.last_error = f"Błąd zapisu linii: {str(e)}"
-    
-    def _get_random_radio_song(self) -> Optional[Path]:
-        """Gets a path to a random MP3 file from the configured radio directory."""
-        radio_dir_path_str = _get_nested_value(self.config, ['radio', 'directory'])
-        if not radio_dir_path_str:
-            logger.warning("Radio directory not configured.")
-            return None
-        
-        radio_dir = Path(radio_dir_path_str)
-        if not radio_dir.is_dir():
-            logger.error(f"Configured radio directory does not exist or is not a directory: {radio_dir}")
-            return None
+             logger.error(f"Unexpected error loading lines: {e}. Returning empty list.", exc_info=True)
+             self.last_error = f"Nieoczekiwany błąd ładowania linii: {str(e)}"
+             return []
+
+    def _load_radio_files(self) -> Tuple[List[str], Optional[str]]:
+        """Loads MP3 files from the configured radio directory."""
+        path_str = _get_nested_value(self.config, ['radio', 'playlist'])
+        if not path_str:
+            logger.info("No radio directory configured.")
+            return [], "Nie skonfigurowano katalogu z plikami radiowymi."
+
+        radio_path = Path(path_str)
+        try:
+            if not radio_path.exists() or not radio_path.is_dir():
+                msg = f"Katalog z plikami radiowymi nie istnieje lub nie jest katalogiem: {radio_path}"
+                logger.error(msg)
+                return [], msg
+
+            files = sorted(f.name for f in radio_path.glob('*.mp3') if f.is_file())
+            if not files:
+                msg = f"Brak plików MP3 w katalogu radiowym: {radio_path}"
+                logger.warning(msg)
+                return [], msg
+
+            logger.info(f"Loaded {len(files)} radio MP3 files from {radio_path}")
+            return files, None
             
-        songs = list(radio_dir.glob('*.mp3'))
-        if not songs:
-            logger.warning(f"No .mp3 files found in radio directory: {radio_dir}")
-            return None
-            
-        song_path = random.choice(songs)
-        logger.info(f"Selected random radio song: {song_path.name}")
-        return song_path
+        except Exception as e:
+            msg = f"Błąd odczytu plików radiowych z {radio_path}: {str(e)}"
+            logger.error(msg, exc_info=True)
+            return [], msg
 
     def _fade_radio_volume(self, start_vol: float, end_vol: float, duration: float = 1.0):
-        """Gradually fades the radio volume, applying master volume."""
+        """Gradually fades the radio volume over a specified duration."""
         if not self.radio_player or not self._vlc_instance:
+            logger.debug("Fade volume: Radio player not available.")
             return
+        # Check player state more reliably
         try:
-             if not self.radio_player.is_playing(): return
-        except Exception: return # Player might be released
-        
-        master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
-        
-        # Calculate effective VLC volume (0-100) including master volume
-        start_vlc = max(0, min(100, int(start_vol * master_vol * 100)))
-        end_vlc = max(0, min(100, int(end_vol * master_vol * 100)))
+             player_state = self.radio_player.get_state()
+             is_playing = player_state in [vlc.State.Playing, vlc.State.Buffering]
+             if not is_playing:
+                  logger.debug(f"Fade volume: Radio player not in playing/buffering state ({player_state}).")
+                  return
+        except Exception as e:
+             logger.warning(f"Fade volume: Could not get player state: {e}")
+             return # Avoid fading if state is unknown
 
-        steps = max(1, int(duration * 20))
+        steps = max(1, int(duration * 20)) # ~20 steps per second
         step_time = duration / steps
+        # Ensure volumes are within 0-100 for VLC
+        start_vlc = max(0, min(100, int(start_vol * 100)))
+        end_vlc = max(0, min(100, int(end_vol * 100)))
         delta = (end_vlc - start_vlc) / steps
 
-        logger.debug(f"Fading radio volume from {start_vlc} to {end_vlc} over {duration}s")
+        logger.debug(f"Fading radio volume from {start_vlc} to {end_vlc} over {duration}s ({steps} steps)")
         current_vol = float(start_vlc)
         try:
-            for _ in range(steps):
+            for i in range(steps):
                 current_vol += delta
-                self.radio_player.audio_set_volume(int(round(current_vol)))
+                vol_to_set = int(round(current_vol))
+                # Check state again inside loop? Maybe too much overhead.
+                ret = self.radio_player.audio_set_volume(vol_to_set)
+                if ret != 0:
+                     logger.warning(f"Fade volume: audio_set_volume returned {ret} at step {i+1}")
+                     # Should we break? Continue for now.
                 time.sleep(step_time)
+            # Ensure final volume is set precisely
             self.radio_player.audio_set_volume(end_vlc)
             logger.debug(f"Fade complete. Volume set to {end_vlc}")
         except Exception as e:
-            logger.warning(f"Error during radio volume fade: {e}")
+            logger.warning(f"Error during radio volume fade: {e}", exc_info=True)
 
     def generate_speech(self, text: str) -> Tuple[Optional[str], Optional[str]]:
         """Generates speech using ElevenLabs API and saves it to a file."""
@@ -373,9 +476,20 @@ class VoiceSystem:
              self.last_error = "ID głosu ElevenLabs nie jest skonfigurowane w config.yaml."
              logger.error(self.last_error)
              return None, self.last_error
-        
+        if not voice_settings:
+             self.last_error = "Sekcja 'voice' w konfiguracji jest pusta lub nieprawidłowa."
+             logger.error(self.last_error)
+             return None, self.last_error
+
+
         url = f'https://api.elevenlabs.io/v1/text-to-speech/{voice_id}'
-        headers = {'Accept': 'audio/mpeg', 'Content-Type': 'application/json', 'xi-api-key': api_key}
+        headers = {
+            'Accept': 'audio/mpeg',
+            'Content-Type': 'application/json',
+            'xi-api-key': api_key
+        }
+
+        # Construct payload carefully, using defaults from DEFAULT_CONFIG if keys missing
         payload = {
             'text': text,
             'model_id': voice_settings.get('model', DEFAULT_CONFIG['voice']['model']),
@@ -384,73 +498,129 @@ class VoiceSystem:
                 'similarity_boost': voice_settings.get('similarity', DEFAULT_CONFIG['voice']['similarity']),
                 'style': voice_settings.get('style', DEFAULT_CONFIG['voice']['style']),
                 'use_speaker_boost': True,
+                # 'speed': voice_settings.get('speed', DEFAULT_CONFIG['voice']['speed']) # Uncomment if speed is supported
             }
         }
+
         try:
             logger.info(f"Generating speech via ElevenLabs for text: '{text[:50]}...'")
-            response = requests.post(url, json=payload, headers=headers, timeout=90)
-            response.raise_for_status()
+            response = requests.post(url, json=payload, headers=headers, timeout=90) # Increased timeout
 
+            response.raise_for_status() # Raise HTTPError for bad responses (4xx or 5xx)
+
+            # Find the next available ID based on current lines
             next_id = max([line.get('id', 0) for line in self.lines] + [0]) + 1
             filename = f'line_{next_id}.mp3'
             path = AUDIO_DIR / filename
             path.write_bytes(response.content)
             logger.info(f"Speech generated successfully and saved as: {filename}")
             return filename, None
+
+        except requests.exceptions.Timeout:
+             self.last_error = "Przekroczono limit czasu połączenia z API ElevenLabs."
+             logger.error(self.last_error, exc_info=True)
+             return None, self.last_error
         except requests.exceptions.RequestException as e:
+            # Try to get more specific error from response if available
             error_detail = str(e)
             if e.response is not None:
-                 try: error_detail = e.response.json().get('detail', {}).get('message', e.response.text)
-                 except (json.JSONDecodeError, AttributeError): error_detail = e.response.text
+                 try:
+                      error_json = e.response.json()
+                      error_detail = error_json.get('detail', {}).get('message', e.response.text)
+                 except json.JSONDecodeError:
+                      error_detail = e.response.text # Use raw text if not JSON
+                 except AttributeError: # Handle cases where .json() or .text might not exist
+                      pass # Keep original str(e)
                  status_code = e.response.status_code
                  self.last_error = f"Błąd API ElevenLabs ({status_code}): {error_detail}"
-            else: self.last_error = f"Błąd połączenia z API ElevenLabs: {error_detail}"
+            else:
+                 self.last_error = f"Błąd połączenia z API ElevenLabs: {error_detail}"
+
             logger.error(self.last_error, exc_info=True)
             return None, self.last_error
+        except IOError as e:
+             self.last_error = f"Błąd zapisu pliku audio: {e}"
+             logger.error(self.last_error, exc_info=True)
+             return None, self.last_error
         except Exception as e:
             self.last_error = f"Nieoczekiwany błąd generowania mowy: {str(e)}"
             logger.error(f"{self.last_error}", exc_info=True)
             return None, self.last_error
 
     def start_radio(self) -> Tuple[bool, str]:
-        """Starts playing a random song from the radio directory."""
+        """Starts the radio playback from a random MP3 file in the configured directory."""
         if not self._vlc_instance:
              msg = "Nie można uruchomić radia: Instancja VLC nie jest dostępna."
              logger.error(msg)
              return False, msg
 
-        if self.radio_player and self.radio_player.is_playing():
-            logger.info("Radio is already playing.")
-            return True, "Radio już gra."
+        if self.radio_player:
+             try:
+                  player_state = self.radio_player.get_state()
+                  if player_state in [vlc.State.Playing, vlc.State.Buffering]:
+                       logger.info("Radio already playing or buffering.")
+                       return True, "Radio już gra lub buforuje."
+                  else:
+                       logger.info(f"Radio player exists but state is {player_state}. Releasing and creating new player.")
+                       self.radio_player.release()
+                       self.radio_player = None
+             except Exception as e:
+                  logger.warning(f"Could not get state of existing player: {e}. Releasing and creating new player.")
+                  if self.radio_player: self.radio_player.release()
+                  self.radio_player = None
 
-        song_path = self._get_random_radio_song()
-        if not song_path:
-            msg = "Nie można uruchomić radia: brak plików MP3 w katalogu radiowym."
+        # Load radio files from directory
+        radio_files, error = self._load_radio_files()
+        if error or not radio_files:
+            msg = error or "Brak plików MP3 do odtwarzania w skonfigurowanym katalogu."
             logger.warning(msg)
             return False, msg
 
+        # Select a random file
+        self._radio_files = radio_files
+        selected_file = random.choice(self._radio_files)
+        self._current_radio_file = selected_file
+        
+        radio_path = Path(_get_nested_value(self.config, ['radio', 'playlist'])) / selected_file
+        
         try:
             self.radio_player = self._vlc_instance.media_player_new()
-            media = self._vlc_instance.media_new(str(song_path))
-            self.radio_player.set_media(media)
-            media.release()
+            if not self.radio_player:
+                 raise vlc.VLCException("Failed to create VLC media player.")
 
-            master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
-            radio_vol = float(_get_nested_value(self.config, ['volumes', 'radio'], 0.5))
-            effective_vol = master_vol * radio_vol
-            initial_volume = max(0, min(100, int(effective_vol * 100)))
-            
+            media = self._vlc_instance.media_new(str(radio_path))
+            if not media:
+                 raise vlc.VLCException(f"Failed to create VLC media from file: {radio_path}")
+
+            self.radio_player.set_media(media)
+            media.release() # Media object can be released after setting it
+
+            initial_volume = max(0, min(100, int(self.config['volumes']['radio'] * 100)))
             self.radio_player.audio_set_volume(initial_volume)
 
             if self.radio_player.play() == -1:
-                 error_msg = "Nie można uruchomić odtwarzania radia (VLC play error)."
+                 error_msg = "VLC player.play() returned -1. Nie można uruchomić odtwarzania."
                  logger.error(error_msg)
                  self.last_error = error_msg
+                 if self.radio_player: self.radio_player.release()
+                 self.radio_player = None
                  return False, self.last_error
             else:
-                logger.info(f"Radio started playing song: {song_path.name} at volume {initial_volume}")
-                return True, "Radio uruchomione."
+                logger.info(f"Radio started playing file: {selected_file}")
+                # Give VLC a moment to buffer and check state
+                time.sleep(2)
+                player_state = self.radio_player.get_state()
+                if player_state not in [vlc.State.Playing, vlc.State.Buffering]:
+                    logger.warning(f"Radio start initiated, but player state is {player_state} after 2s.")
+                    # Consider checking media state for errors if needed
+                return True, f"Radio uruchomione. Odtwarzanie pliku: {selected_file}"
 
+        except vlc.VLCException as e:
+             self.last_error = f"Błąd VLC podczas uruchamiania radia: {str(e)}"
+             logger.error(f"{self.last_error}", exc_info=True)
+             if self.radio_player: self.radio_player.release()
+             self.radio_player = None
+             return False, self.last_error
         except Exception as e:
             self.last_error = f"Nieoczekiwany błąd uruchamiania radia: {str(e)}"
             logger.error(f"{self.last_error}", exc_info=True)
@@ -461,64 +631,114 @@ class VoiceSystem:
     def stop_radio(self) -> Tuple[bool, str]:
         """Stops the radio playback."""
         if not self.radio_player:
+            logger.info("Stop radio: Player instance does not exist.")
             return True, "Radio nie było uruchomione."
+
         try:
-            if self.radio_player.is_playing():
-                self.radio_player.stop()
+            player_state = self.radio_player.get_state()
+            logger.info(f"Stop radio: Current player state is {player_state}")
+            if player_state != vlc.State.Stopped and player_state != vlc.State.Ended and player_state != vlc.State.Error:
+                if self.radio_player.is_playing(): # Check this as well
+                     self.radio_player.stop()
+                     logger.info("Radio stop() called.")
+                     # Give it a moment to actually stop
+                     time.sleep(0.5)
+            else:
+                 logger.info("Radio already stopped or in ended/error state.")
+
+            # Always release the player resources
             self.radio_player.release()
             self.radio_player = None
-            logger.info("Radio player stopped and released.")
+            logger.info("Radio player released.")
             return True, "Radio zatrzymane."
         except Exception as e:
             self.last_error = f"Błąd podczas zatrzymywania radia VLC: {str(e)}"
             logger.error(self.last_error, exc_info=True)
+            # Ensure player is cleared even on error during stop/release
             self.radio_player = None
             return False, self.last_error
 
+    def get_current_radio_file(self) -> Optional[str]:
+        """Returns the currently playing radio file name."""
+        return self._current_radio_file
+
     def play_audio(self, filename: str) -> Tuple[bool, str]:
-        """Plays a specific voice line with effects and ducks radio."""
+        """Plays a specific audio file with effects and ducking."""
         path = AUDIO_DIR / filename
         if not path.is_file():
-            self.last_error = f"Plik audio nie istnieje: {path}"
+            self.last_error = f"Plik audio nie istnieje lub nie jest plikiem: {path}"
             logger.error(self.last_error)
             return False, self.last_error
 
         try:
-            audio = AudioSegment.from_file(path)
+            logger.info(f"Loading audio file: {path}")
+            # Load audio segment
+            try:
+                audio = AudioSegment.from_file(path)
+            except pydub_exceptions.CouldntDecodeError as decode_error:
+                 self.last_error = f"Nie można zdekodować pliku audio {filename}: {decode_error}"
+                 logger.error(self.last_error, exc_info=True)
+                 return False, self.last_error
+            except FileNotFoundError: # Should be caught by is_file() but double check
+                 self.last_error = f"Plik audio zniknął przed załadowaniem: {path}"
+                 logger.error(self.last_error)
+                 return False, self.last_error
 
+
+            # 1. Apply distortion simulation if enabled
             distortion_cfg = self.config.get('distortion_simulation', {})
             if distortion_cfg.get('enabled', False):
                 audio = degrade_audio(audio, distortion_cfg)
 
-            comp_cfg = _get_nested_value(self.config, ['volumes', 'compression'], {})
+            # 2. Apply dynamic range compression
+            comp_cfg = _get_nested_value(self.config, ['volumes', 'compression'], DEFAULT_CONFIG['volumes']['compression'])
+            logger.debug(f"Applying compression: {comp_cfg}")
             audio = audio.compress_dynamic_range(
-                threshold=comp_cfg.get('threshold', -20.0), ratio=comp_cfg.get('ratio', 4.0),
-                attack=comp_cfg.get('attack', 5.0), release=comp_cfg.get('release', 50.0)
+                threshold=comp_cfg.get('threshold', -20.0),
+                ratio=comp_cfg.get('ratio', 4.0),
+                attack=comp_cfg.get('attack', 5.0),
+                release=comp_cfg.get('release', 50.0)
             )
 
-            voice_vol = float(_get_nested_value(self.config, ['volumes', 'voice'], 1.0))
-            master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
-            total_gain_factor = max(0.001, voice_vol * master_vol)
+            # 3. Adjust gain (Voice Volume * Master Volume)
+            voice_vol = _get_nested_value(self.config, ['volumes', 'voice'], DEFAULT_CONFIG['volumes']['voice'])
+            master_vol = _get_nested_value(self.config, ['volumes', 'master'], DEFAULT_CONFIG['volumes']['master'])
+            total_gain_factor = max(0.001, float(voice_vol) * float(master_vol))
             gain_db = 20 * math.log10(total_gain_factor)
+            logger.debug(f"Applying gain: {gain_db:.2f} dB (Voice: {voice_vol}, Master: {master_vol})")
             audio = audio.apply_gain(gain_db)
 
-            radio_playing = self.radio_player and self.radio_player.is_playing()
+            # 4. Duck radio volume (fade out)
+            radio_playing = self.radio_player and self.radio_player.is_playing() # is_playing() might be sufficient
             if radio_playing:
-                self._fade_radio_volume(self.radio_volume, self.duck_volume, duration=0.5)
+                logger.debug("Ducking radio volume...")
+                current_radio_vol = _get_nested_value(self.config, ['volumes', 'radio'], DEFAULT_CONFIG['volumes']['radio'])
+                duck_vol = _get_nested_value(self.config, ['volumes', 'ducking'], DEFAULT_CONFIG['volumes']['ducking'])
+                self._fade_radio_volume(current_radio_vol, duck_vol, duration=0.5)
 
+            # 5. Play the processed audio (blocking)
             logger.info(f"Playing processed audio: {filename} (Duration: {len(audio)/1000.0:.2f}s)")
-            play(audio)
+            play(audio) # This uses simpleaudio or ffmpeg/avplay backend
             logger.info(f"Finished playing: {filename}")
 
+            # 6. Restore radio volume (fade in)
             if radio_playing:
-                self._fade_radio_volume(self.duck_volume, self.radio_volume, duration=1.0)
+                logger.debug("Restoring radio volume...")
+                current_radio_vol = _get_nested_value(self.config, ['volumes', 'radio'], DEFAULT_CONFIG['volumes']['radio'])
+                duck_vol = _get_nested_value(self.config, ['volumes', 'ducking'], DEFAULT_CONFIG['volumes']['ducking'])
+                self._fade_radio_volume(duck_vol, current_radio_vol, duration=1.0)
 
             return True, f"Odtworzono: {filename}"
+
         except Exception as e:
-            self.last_error = f"Błąd podczas odtwarzania pliku {filename}: {str(e)}"
+            self.last_error = f"Błąd podczas przetwarzania lub odtwarzania pliku {filename}: {str(e)}"
             logger.error(f"{self.last_error}", exc_info=True)
+            # Attempt to restore radio volume even if playback failed mid-way
             if self.radio_player and self.radio_player.is_playing():
-                 self._fade_radio_volume(self.duck_volume, self.radio_volume, duration=0.5)
+                 logger.warning("Attempting to restore radio volume after playback error.")
+                 current_radio_vol = _get_nested_value(self.config, ['volumes', 'radio'], DEFAULT_CONFIG['volumes']['radio'])
+                 duck_vol = _get_nested_value(self.config, ['volumes', 'ducking'], DEFAULT_CONFIG['volumes']['ducking'])
+                 self._fade_radio_volume(duck_vol, current_radio_vol, duration=0.5)
             return False, self.last_error
 
     def _scheduler_loop(self):
@@ -527,230 +747,487 @@ class VoiceSystem:
         self._scheduler_running = True
         self._stop_scheduler_event.clear()
 
-        self.start_radio()
+        # Try starting radio immediately when scheduler starts
+        radio_start_success, radio_start_msg = self.start_radio()
+        if not radio_start_success:
+            logger.warning(f"Scheduler starting, but radio failed to start initially: {radio_start_msg}")
 
         while not self._stop_scheduler_event.is_set():
             try:
-                # --- Radio Management: Play next song if finished ---
-                if self._vlc_instance:
-                    radio_state = vlc.State.Error
-                    try:
-                        if self.radio_player: radio_state = self.radio_player.get_state()
-                    except Exception: pass
-                    
-                    if radio_state in [vlc.State.Ended, vlc.State.Stopped, vlc.State.Error]:
-                        logger.info(f"Radio state is {radio_state}. Starting next song.")
-                        self.start_radio()
-                        time.sleep(2) # Give it a moment to buffer
-
-                # --- Voice Line Playback ---
+                # --- Get active lines ---
                 active_lines = [
                     line for line in self.lines
-                    if line.get('active', False) and (AUDIO_DIR / line['filename']).is_file()
+                    if line.get('active', False)
+                    and line.get('filename')
+                    and (AUDIO_DIR / line['filename']).is_file() # Check file exists here too
                 ]
 
-                if active_lines:
+                if not active_lines:
+                    logger.debug("Scheduler loop: No active lines with valid files found. Waiting...")
+                    # Wait for a shorter interval if no lines, check stop event more often
+                    wait_time = 30.0
+                else:
+                    # --- Select and play line ---
                     line_to_play = random.choice(active_lines)
-                    logger.info(f"Scheduler selected line ID {line_to_play['id']}: '{line_to_play['text'][:50]}...'")
+                    line_id = line_to_play.get('id', 'N/A')
+                    line_text = line_to_play.get('text', '')[:50]
+                    logger.info(f"Scheduler selected line ID {line_id}: '{line_text}...'")
+
+                    # Ensure radio is still playing, try restarting if not
+                    if self._vlc_instance: # Only manage radio if VLC is available
+                        radio_state = vlc.State.Error # Default to error if check fails
+                        try:
+                            if self.radio_player:
+                                radio_state = self.radio_player.get_state()
+                        except Exception as state_e:
+                             logger.warning(f"Could not get radio state before playing line: {state_e}")
+
+                        if radio_state not in [vlc.State.Playing, vlc.State.Buffering]:
+                             logger.warning(f"Radio not playing (state: {radio_state}) before playing line. Attempting restart...")
+                             self.start_radio()
+                             # Give it a moment to connect before ducking/playing
+                             time.sleep(2)
+
+
+                    # Play the selected line
                     success, msg = self.play_audio(line_to_play['filename'])
-                    if not success: logger.error(f"Scheduler failed to play line ID {line_to_play['id']}: {msg}")
-                
-                interval = float(_get_nested_value(self.config, ['radio', 'interval'], 300))
-                wait_time = max(1.0, interval) if active_lines else 30.0
+                    if not success:
+                        logger.error(f"Scheduler failed to play line ID {line_id}: {msg}")
+                        # Optional: Deactivate line on playback error?
+                        # self.bulk_toggle_sync([line_id], False) # Pass ID directly
+
+                    # --- Wait for interval ---
+                    interval = float(_get_nested_value(self.config, ['radio', 'interval'], DEFAULT_CONFIG['radio']['interval']))
+                    wait_time = max(1.0, interval) # Ensure wait time is at least 1 second
+
 
                 logger.debug(f"Scheduler waiting for {wait_time:.1f} seconds...")
+                # Use wait() on the event for the interval duration.
+                # This allows the loop to exit quickly if stop() is called.
                 interrupted = self._stop_scheduler_event.wait(wait_time)
-                if interrupted: break
+                if interrupted:
+                     logger.info("Scheduler wait interrupted by stop event.")
+                     break # Exit loop immediately if stop event is set
+
 
             except Exception as e:
                 logger.error(f"Critical error in scheduler loop: {e}", exc_info=True)
-                if self._stop_scheduler_event.wait(15): break
+                # Avoid busy-looping on unexpected error, wait a bit before retrying
+                logger.info("Waiting 15 seconds after scheduler loop error...")
+                interrupted = self._stop_scheduler_event.wait(15)
+                if interrupted: break # Exit if stopped during error wait
 
-        logger.info("Scheduler thread stopping...")
-        if self._vlc_instance: self.stop_radio()
+        # --- Loop exited ---
+        logger.info("Scheduler thread received stop signal or exited loop.")
+        if self._vlc_instance:
+             logger.info("Stopping radio as part of scheduler shutdown...")
+             self.stop_radio()
         self._scheduler_running = False
         logger.info("Scheduler thread finished.")
-    
-    # --- Public Methods (Largely Unchanged Signatures) ---
+
 
     def start_scheduler(self) -> Tuple[bool, str]:
-        if self._scheduler_thread and self._scheduler_thread.is_alive():
+        """Starts the scheduler in a separate thread."""
+        if self._scheduler_thread is not None and self._scheduler_thread.is_alive():
+            logger.warning("Scheduler is already running.")
             return False, "Scheduler już działa."
+
         self._stop_scheduler_event.clear()
         self._scheduler_thread = threading.Thread(target=self._scheduler_loop, name="VoiceLineScheduler", daemon=True)
-        self._scheduler_thread.start()
+        try:
+            self._scheduler_thread.start()
+        except RuntimeError as e:
+             logger.error(f"Failed to start scheduler thread: {e}", exc_info=True)
+             return False, f"Nie udało się uruchomić wątku schedulera: {e}"
+
+        # Give the thread a moment to set the _scheduler_running flag
         time.sleep(0.5)
         if self._scheduler_running:
-            return True, "Scheduler uruchomiony."
+             logger.info("Scheduler started successfully.")
+             return True, "Scheduler uruchomiony."
         else:
-            return False, "Wątek schedulera nie uruchomił się poprawnie."
+             logger.error("Scheduler thread started but did not set running flag.")
+             # Attempt to join the potentially failed thread?
+             self._scheduler_thread.join(timeout=1.0)
+             return False, "Wątek schedulera nie uruchomił się poprawnie."
+
 
     def stop_scheduler(self) -> Tuple[bool, str]:
-        if not self._scheduler_thread or not self._scheduler_thread.is_alive():
-            return True, "Scheduler nie był uruchomiony."
-        self._stop_scheduler_event.set()
-        self._scheduler_thread.join(timeout=10)
-        if self._scheduler_thread.is_alive():
-            self._scheduler_running = False
-            return False, "Scheduler nie zatrzymał się w wyznaczonym czasie."
+        """Signals the scheduler thread to stop."""
+        if self._scheduler_thread is None or not self._scheduler_thread.is_alive():
+            logger.info("Stop scheduler: Scheduler is not running or thread object is None.")
+            self._scheduler_running = False # Ensure flag is correct
+            return True, "Scheduler nie był uruchomiony." # Return True as the desired state is achieved
+
+        if self._stop_scheduler_event.is_set():
+             logger.warning("Stop scheduler: Stop event already set.")
+             # Still wait for thread to join? Yes.
         else:
+             logger.info("Sending stop signal to scheduler thread...")
+             self._stop_scheduler_event.set()
+
+        # Wait for the thread to finish
+        thread_name = self._scheduler_thread.name
+        logger.info(f"Waiting for scheduler thread ({thread_name}) to join...")
+        self._scheduler_thread.join(timeout=10) # Wait up to 10 seconds
+
+        if self._scheduler_thread.is_alive():
+            logger.warning(f"Scheduler thread ({thread_name}) did not stop within timeout.")
+            # The thread might be stuck, but the radio stop was attempted inside the loop's exit path.
+            self._scheduler_running = False # Force setting the flag
+            return False, "Scheduler nie zatrzymał się w wyznaczonym czasie (ale próba zatrzymania radia została podjęta)."
+        else:
+            logger.info(f"Scheduler thread ({thread_name}) stopped successfully.")
             self._scheduler_running = False
-            self._scheduler_thread = None
+            self._scheduler_thread = None # Clear the thread object
             return True, "Scheduler zatrzymany."
 
     def get_scheduler_status(self) -> bool:
-        if self._scheduler_thread and not self._scheduler_thread.is_alive():
+        """Returns the running status of the scheduler."""
+        if self._scheduler_thread is not None and not self._scheduler_thread.is_alive():
+             logger.debug("Scheduler status check found dead thread. Updating status.")
              self._scheduler_running = False
              self._scheduler_thread = None
         return self._scheduler_running
 
     def get_lines(self) -> List[Dict]:
+        """Returns the list of all voice lines."""
         return self.lines
 
     def get_line_by_id(self, line_id: int) -> Optional[Dict]:
-        return next((line for line in self.lines if line.get('id') == line_id), None)
+        """Finds a voice line by its ID."""
+        for line in self.lines:
+            if line.get('id') == line_id:
+                return line
+        return None
 
     def add_line(self, text: str) -> Tuple[Optional[Dict], Optional[str]]:
-        if not text or not text.strip():
-            return None, "Tekst linii nie może być pusty."
+        """Adds a new voice line, generates speech, and saves."""
+        if not isinstance(text, str) or not text.strip():
+            self.last_error = "Tekst linii nie może być pusty."
+            logger.warning(self.last_error)
+            return None, self.last_error
+
         filename, error = self.generate_speech(text.strip())
         if filename:
-            new_id = int(filename.split('_')[1].split('.')[0])
-            new_line = {'id': new_id, 'text': text.strip(), 'filename': filename, 'active': True}
+            # ID generation is handled by generate_speech now based on max existing ID
+            new_id = int(filename.split('_')[1].split('.')[0]) # Extract ID from filename
+            new_line = {
+                'id': new_id,
+                'text': text.strip(),
+                'filename': filename,
+                'active': True # New lines are active by default
+            }
             self.lines.append(new_line)
             self._save_lines()
-            return new_line, None
+            logger.info(f"Added new line with ID {new_id}")
+            return new_line, None # Return the full new line object
         else:
-            return None, error
+            # self.last_error is already set by generate_speech
+            return None, self.last_error
 
     def edit_line(self, line_id: int, new_text: str) -> Tuple[Optional[Dict], Optional[str]]:
-        if not new_text or not new_text.strip():
-            return None, "Nowy tekst linii nie może być pusty."
-        line_to_edit = self.get_line_by_id(line_id)
-        if not line_to_edit:
-            return None, f"Nie znaleziono linii o ID: {line_id} do edycji."
-        
-        old_filename = line_to_edit.get('filename')
-        # Generate with new text, which will create a new file with a *new* ID.
-        # This is a bit tricky. We should regenerate with the *same* ID. Let's adapt generate_speech.
-        # For now, let's stick to the original logic which creates a new file and we'll update the line.
-        # The prompt asked to keep things the same, and the original `generate_speech` determines ID.
-        
-        filename, error = self.generate_speech(new_text.strip())
-        if filename:
-            if old_filename:
-                try: (AUDIO_DIR / old_filename).unlink(missing_ok=True)
-                except OSError as e: logger.warning(f"Could not remove old audio file {old_filename}: {e}")
-            
-            # The line being edited is now orphaned. We need to find its index and update it.
-            # But the new file has a new ID. The best approach is to remove the old line and add the new one.
-            # However, this re-indexes everything, which is not ideal for an edit.
-            # A better way: update the existing line entry directly.
-            
-            line_to_edit['text'] = new_text.strip()
-            # To keep the same ID, we should have generated speech for that ID. Let's assume the user
-            # wants to keep the existing ID. We will rename the new file.
-            new_path_temp = AUDIO_DIR / filename
-            final_filename = f"line_{line_id}.mp3"
-            final_path = AUDIO_DIR / final_filename
-            
-            # Delete old file with the same name if it exists, then rename the new one
-            final_path.unlink(missing_ok=True)
-            new_path_temp.rename(final_path)
+        """Edits the text of an existing line, regenerates speech, and saves."""
+        if not isinstance(new_text, str) or not new_text.strip():
+            self.last_error = "Nowy tekst linii nie może być pusty."
+            logger.warning(self.last_error)
+            return None, self.last_error
 
-            line_to_edit['filename'] = final_filename
-            self._save_lines()
-            logger.info(f"Edited line ID {line_id}. New audio file is {final_filename}.")
-            return line_to_edit, None
+        line_to_edit = self.get_line_by_id(line_id)
+
+        if line_to_edit:
+            old_filename = line_to_edit.get('filename')
+            logger.info(f"Attempting to regenerate audio for line ID {line_id}...")
+            # Use the same ID for the new filename to replace the old one
+            filename, error = self.generate_speech(new_text.strip()) # Generate speech first
+
+            if filename:
+                 # Check if filename actually changed (it shouldn't if ID logic is consistent)
+                 if old_filename and old_filename != filename:
+                      logger.warning(f"Filename changed during edit for ID {line_id} ('{old_filename}' -> '{filename}'). Deleting old file.")
+                      old_path = AUDIO_DIR / old_filename
+                      if old_path.is_file():
+                          try:
+                              old_path.unlink()
+                              logger.info(f"Removed old audio file: {old_filename}")
+                          except OSError as e:
+                              logger.warning(f"Could not remove old audio file {old_filename}: {e}")
+                 else:
+                      logger.info(f"Audio regenerated successfully, filename '{filename}' remains.")
+
+
+                 # Update the line in the list
+                 line_to_edit['text'] = new_text.strip()
+                 line_to_edit['filename'] = filename # Ensure filename is updated if it did change
+                 # Keep the existing 'active' status: line_to_edit['active'] remains unchanged
+
+                 self._save_lines()
+                 logger.info(f"Edited line ID {line_id}")
+                 return line_to_edit, None # Return updated line
+            else:
+                # self.last_error is set by generate_speech
+                logger.error(f"Failed to regenerate audio for editing line ID {line_id}: {self.last_error}")
+                return None, self.last_error
         else:
-            return None, error
+            self.last_error = f"Nie znaleziono linii o ID: {line_id} do edycji."
+            logger.warning(self.last_error)
+            return None, self.last_error
+
 
     def bulk_toggle_sync(self, ids_to_toggle: List[int], new_state: Optional[bool] = None) -> Tuple[int, List[int]]:
+        """
+        Toggles the active state of lines specified by a list of IDs.
+        Returns the count of changed lines and a list of their IDs.
+        """
         changed_count = 0
         ids_changed = []
+        valid_ids_found = set()
+
         for line in self.lines:
-            if line.get('id') in ids_to_toggle:
-                current_state = line.get('active', False)
+            line_id = line.get('id')
+            if line_id in ids_to_toggle:
+                valid_ids_found.add(line_id)
+                current_state = line.get('active', False) # Default to False if missing
                 target_state = not current_state if new_state is None else new_state
+
                 if current_state != target_state:
                     line['active'] = target_state
                     changed_count += 1
-                    ids_changed.append(line.get('id'))
-        if changed_count > 0: self._save_lines()
+                    ids_changed.append(line_id)
+                    logger.debug(f"Toggled line ID {line_id} to active={target_state}")
+
+        # Check for requested IDs that were not found
+        not_found_ids = set(ids_to_toggle) - valid_ids_found
+        if not_found_ids:
+             logger.warning(f"Could not find lines with the following IDs for toggling: {sorted(list(not_found_ids))}")
+
+
+        if changed_count > 0:
+            self._save_lines()
+            state_desc = "flipped" if new_state is None else ("active" if new_state else "inactive")
+            logger.info(f"Toggled state ({state_desc}) for {changed_count} lines (IDs: {sorted(ids_changed)}).")
+        else:
+            logger.info("No lines needed toggling for the given IDs.")
+
         return changed_count, sorted(ids_changed)
 
     def toggle_all_lines(self, new_state: bool) -> int:
-        changed_count = sum(1 for line in self.lines if line.get('active') != new_state)
-        for line in self.lines: line['active'] = new_state
-        if changed_count > 0: self._save_lines()
+        """Sets the active state for ALL lines."""
+        changed_count = 0
+        for line in self.lines:
+             if line.get('active') != new_state:
+                  line['active'] = new_state
+                  changed_count += 1
+        if changed_count > 0:
+             self._save_lines()
+        state_desc = "active" if new_state else "inactive"
+        logger.info(f"Set all {len(self.lines)} lines to {state_desc}. {changed_count} lines were changed.")
         return changed_count
 
+
     def remove_lines_sync(self, ids_to_remove: List[int]) -> Tuple[int, List[int]]:
-        removed_ids = []
+        """
+        Removes lines specified by a list of IDs and their associated audio files.
+        Re-indexes remaining lines.
+        Returns the count of removed lines and a list of their original IDs.
+        """
+        removed_count = 0
+        actually_removed_ids = []
         lines_to_keep = []
+        valid_ids_found = set()
+
+        # Identify lines to keep and files to delete
+        files_to_delete = []
         for line in self.lines:
-            if line.get('id') in ids_to_remove:
-                removed_ids.append(line.get('id'))
-                if filename := line.get('filename'):
-                    try: (AUDIO_DIR / filename).unlink(missing_ok=True)
-                    except OSError as e: logger.warning(f"Could not remove audio file {filename}: {e}")
+            line_id = line.get('id')
+            if line_id in ids_to_remove:
+                valid_ids_found.add(line_id)
+                filename = line.get('filename')
+                if filename:
+                    files_to_delete.append(AUDIO_DIR / filename)
+                actually_removed_ids.append(line_id)
+                removed_count += 1
             else:
                 lines_to_keep.append(line)
-        
-        if len(removed_ids) > 0:
-            # Re-index remaining lines
-            for i, line in enumerate(lines_to_keep):
-                old_id = line['id']
-                new_id = i + 1
-                if old_id != new_id:
-                    line['id'] = new_id
-                    # Also rename the file to match the new ID
-                    if filename := line.get('filename'):
-                        old_path = AUDIO_DIR / filename
-                        new_filename = f"line_{new_id}.mp3"
-                        new_path = AUDIO_DIR / new_filename
-                        if old_path.exists() and old_path != new_path:
-                           try: old_path.rename(new_path)
-                           except OSError as e: logger.error(f"Failed to rename {old_path} to {new_path}: {e}")
-                        line['filename'] = new_filename
+
+        # Check for requested IDs that were not found
+        not_found_ids = set(ids_to_remove) - valid_ids_found
+        if not_found_ids:
+             logger.warning(f"Could not find lines with the following IDs for removal: {sorted(list(not_found_ids))}")
+
+        if removed_count > 0:
+            logger.info(f"Attempting to remove {removed_count} lines with original IDs: {sorted(actually_removed_ids)}")
+
+            # Delete audio files first
+            for path in files_to_delete:
+                if path.is_file():
+                    try:
+                        path.unlink()
+                        logger.info(f"Removed audio file: {path.name}")
+                    except OSError as e:
+                        logger.warning(f"Could not remove audio file {path.name}: {e}")
+                else:
+                     logger.warning(f"Audio file not found for deletion: {path.name}")
+
+
+            # Re-index the remaining lines sequentially
+            for new_idx, line in enumerate(lines_to_keep):
+                line['id'] = new_idx + 1
+
             self.lines = lines_to_keep
             self._save_lines()
-            logger.info(f"Removed {len(removed_ids)} lines and re-indexed remaining lines.")
-        return len(removed_ids), sorted(removed_ids)
+            logger.info(f"Successfully removed {removed_count} lines. Lines re-indexed.")
+        else:
+            logger.info("No lines were removed for the given IDs.")
+
+        return removed_count, sorted(actually_removed_ids)
 
     def remove_all_lines(self) -> Tuple[int, List[int]]:
-        return self.remove_lines_sync([line.get('id') for line in self.lines])
+        """Removes ALL lines and their audio files."""
+        all_ids = [line.get('id') for line in self.lines if line.get('id') is not None]
+        if not all_ids:
+             logger.info("Remove all lines: No lines exist to remove.")
+             return 0, []
+        logger.warning("Removing all voice lines!")
+        return self.remove_lines_sync(all_ids)
+
 
     def update_settings(self, settings_update_dict: Dict) -> Tuple[bool, str]:
+        """
+        Updates the system configuration with new settings provided in a dictionary.
+        Performs validation before applying and saving.
+        """
         try:
-            potential_new_config = self._merge_configs(self.config.copy(), settings_update_dict)
-            import models
-            models.AppSettings(**potential_new_config)
-            
-            self.config = potential_new_config
-            self.radio_volume = _get_nested_value(self.config, ['volumes', 'radio'], 0.5)
-            self.duck_volume = _get_nested_value(self.config, ['volumes', 'ducking'], 0.1)
+            # Create a deep copy of current config to modify and validate
+            potential_new_config = self.config.copy() # Or use deepcopy for nested dicts
+            potential_new_config = self._merge_configs(potential_new_config, settings_update_dict)
 
+            # --- Perform Validation on potential_new_config ---
+            try:
+                 # Validate the merged structure using the Pydantic model
+                 import models
+                 models.AppSettings(**potential_new_config)
+                 logger.debug("Potential new settings passed Pydantic validation.")
+            except Exception as pydantic_error: # Catch Pydantic's ValidationError specifically if possible
+                 error_msg = f"Błąd walidacji ustawień: {pydantic_error}"
+                 logger.error(error_msg, exc_info=True)
+                 self.last_error = error_msg
+                 return False, self.last_error
+
+            # If validation passes, apply the changes
+            self.config = potential_new_config
+
+            # Update runtime variables affected by config changes
+            self.radio_volume = _get_nested_value(self.config, ['volumes', 'radio'], DEFAULT_CONFIG['volumes']['radio'])
+            self.duck_volume = _get_nested_value(self.config, ['volumes', 'ducking'], DEFAULT_CONFIG['volumes']['ducking'])
+
+            # Apply volume change immediately if radio is playing and VLC is available
             if self._vlc_instance and self.radio_player and self.radio_player.is_playing():
-                 master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
-                 effective_vol = master_vol * self.radio_volume
-                 new_vol_int = max(0, min(100, int(effective_vol * 100)))
-                 self.radio_player.audio_set_volume(new_vol_int)
-                 logger.info(f"Applied new radio volume ({new_vol_int}) to playing stream.")
-            
-            self._save_config()
+                 new_vol_int = max(0, min(100, int(self.radio_volume * 100)))
+                 ret = self.radio_player.audio_set_volume(new_vol_int)
+                 if ret == 0:
+                      logger.info(f"Applied new radio volume ({new_vol_int}) to playing stream.")
+                 else:
+                      logger.warning(f"Failed to apply new radio volume ({new_vol_int}) to playing stream (ret={ret}).")
+
+
+            self._save_config() # Save the validated and updated config
+            logger.info("Settings updated successfully.")
             return True, "Ustawienia zaktualizowane."
+
         except Exception as e:
-             error_msg = f"Błąd walidacji lub aktualizacji ustawień: {e}"
-             logger.error(error_msg, exc_info=True)
-             return False, error_msg
+             self.last_error = f"Nieoczekiwany błąd podczas aktualizacji ustawień: {str(e)}"
+             logger.error(f"{self.last_error}", exc_info=True)
+             # Should we revert? Reloading might be safest.
+             logger.warning("Reverting configuration due to update error.")
+             self.config = self._load_config() # Revert by reloading from file or defaults
+             return False, self.last_error
 
     def get_settings(self) -> Dict:
+        """Returns the current configuration."""
         import copy
         return copy.deepcopy(self.config)
 
     def cleanup(self):
+        """Clean up resources like stopping scheduler and radio."""
         logger.info("Cleaning up VoiceSystem resources...")
-        self.stop_scheduler()
+        self.stop_scheduler() # Stops scheduler thread and attempts radio stop
+        # Ensure radio is stopped again, in case scheduler stop failed or wasn't running
         self.stop_radio()
         logger.info("VoiceSystem cleanup complete.")
+
+
+# --- Main execution block (for testing module directly) ---
+if __name__ == "__main__":
+    print("--- Running VoiceSystem Module Self-Test ---")
+    vs = VoiceSystem()
+
+    print("\n--- Initial Config ---")
+    print(json.dumps(vs.get_settings(), indent=2, ensure_ascii=False))
+
+    print("\n--- Initial Lines ---")
+    print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+
+    # --- Example Usage (uncomment to test) ---
+    # print("\n--- Adding Line ---")
+    # test_text = "To jest linia testowa numer jeden."
+    # new_line, err = vs.add_line(test_text)
+    # added_id = None
+    # if new_line:
+    #     print(f"Added line: {new_line}")
+    #     added_id = new_line['id']
+    #     print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+
+    #     print("\n--- Adding Second Line ---")
+    #     new_line_2, err_2 = vs.add_line("Druga linia do testów.")
+    #     added_id_2 = None
+    #     if new_line_2:
+    #          print(f"Added line 2: {new_line_2}")
+    #          added_id_2 = new_line_2['id']
+    #          print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+
+    #          print(f"\n--- Editing Line ID {added_id} ---")
+    #          updated_line, err_edit = vs.edit_line(added_id, "Zedytowany tekst pierwszej linii.")
+    #          if updated_line:
+    #              print(f"Edited line: {updated_line}")
+    #              print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+    #          else:
+    #              print(f"Edit Error: {err_edit}")
+
+    #          print(f"\n--- Toggling Lines {added_id}, {added_id_2} to inactive ---")
+    #          count, ids_changed = vs.bulk_toggle_sync([added_id, added_id_2], new_state=False)
+    #          print(f"Toggled {count} lines (IDs: {ids_changed}).")
+    #          print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+
+    #          print(f"\n--- Toggling Line {added_id} (Flip state) ---")
+    #          count, ids_changed = vs.bulk_toggle_sync([added_id]) # Flip state
+    #          print(f"Toggled {count} lines (IDs: {ids_changed}).")
+    #          print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+
+
+    #          print(f"\n--- Removing Line ID {added_id_2} ---")
+    #          removed_count, removed_ids = vs.remove_lines_sync([added_id_2])
+    #          print(f"Removed {removed_count} lines (Original IDs: {removed_ids}).")
+    #          print("Current lines after removal and re-index:")
+    #          print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+
+    #          # Get the new ID of the remaining line (should be 1 now)
+    #          remaining_line = vs.get_lines()[0] if vs.get_lines() else None
+    #          if remaining_line:
+    #               print(f"\n--- Removing Remaining Line ID {remaining_line['id']} ---")
+    #               removed_count, removed_ids = vs.remove_lines_sync([remaining_line['id']])
+    #               print(f"Removed {removed_count} lines (Original IDs: {removed_ids}).")
+    #               print(json.dumps(vs.get_lines(), indent=2, ensure_ascii=False))
+    #          else:
+    #               print("\nNo remaining lines to remove.")
+
+
+    #     else:
+    #         print(f"Error adding line 2: {err_2}")
+
+    # else:
+    #     print(f"Error adding line 1: {err}")
+
+    print("\n--- Testing Cleanup ---")
+    vs.cleanup()
+    print("\n--- Module Self-Test Finished ---")

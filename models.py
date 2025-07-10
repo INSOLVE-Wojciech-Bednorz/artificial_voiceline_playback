@@ -19,7 +19,7 @@ class VoiceLine(VoiceLineBase):
         json_schema_extra = {
             "example": {
                 "id": 42,
-                "text": "Zapraszamy do działu owoców i warzyw! Słodkie pomarańcze w cenie 3,99 zł za kilogram. Doskonałe na sok!",
+                "text": "Zapraszamy do dzia\u0142u owoc\u00f3w i warzyw! S\u0142odkie pomara\u0144cze w cenie 3,99 z\u0142 za kilogram. Doskona\u0142e na sok!",
                 "filename": "line_42.mp3",
                 "active": True
             }
@@ -78,7 +78,7 @@ class VolumeSettings(BaseModel):
 
 class RadioSettings(BaseModel):
     """Model for radio settings."""
-    playlist: Optional[str] = Field(None, description="Path to the directory with MP3 files for the radio (can be empty or null).", example="./radio_files")
+    playlist: Optional[str] = Field(None, description="Path to the M3U or PLS playlist file (can be empty or null).", example="RMF_FM.pls")
     interval: float = Field(..., gt=0, description="Interval between voice lines in seconds (e.g., 300 for 5 minutes).", example=30.0)
 
 class DistortionSettings(BaseModel):
@@ -86,8 +86,8 @@ class DistortionSettings(BaseModel):
     enabled: bool = Field(..., description="Enable/disable distortion effects.", example=False)
     sample_rate: int = Field(..., ge=8000, le=48000, description="Target sample rate for downsampling effect (Hz).", example=32000)
     distortion: float = Field(..., ge=0.0, le=1.0, description="Amount of non-linear distortion/clipping (0.0 to 1.0).", example=0.0002)
-    filter_low: int = Field(..., ge=20, le=5000, description="High-pass filter cutoff frequency (Hz).", example=200)
-    filter_high: int = Field(..., ge=100, le=20000, description="Low-pass filter cutoff frequency (Hz).", example=4000)
+    filter_low: int = Field(..., ge=20, le=5000, description="High-pass filter cutoff frequency (Hz).", example=200) # Adjusted max based on common use
+    filter_high: int = Field(..., ge=100, le=20000, description="Low-pass filter cutoff frequency (Hz).", example=4000) # Adjusted max
     noise_level: float = Field(..., ge=0.0, le=0.5, description="Amount of added noise (0.0 to 0.5).", example=0.0001)
     bit_depth: int = Field(..., ge=4, le=16, description="Target bit depth for bitcrushing effect (4-16 bits).", example=16)
     crackle: float = Field(..., ge=0.0, le=0.5, description="Intensity of simulated crackle effect (0.0 to 0.5).", example=0.0002)
@@ -98,7 +98,7 @@ class AppSettings(BaseModel):
     voice: VoiceSettings
     volumes: VolumeSettings
     radio: RadioSettings
-    distortion_simulation: DistortionSettings
+    distortion_simulation: DistortionSettings # Only one section now
 
     # Add an example for the whole settings structure
     model_config = ConfigDict(
@@ -113,7 +113,7 @@ class AppSettings(BaseModel):
                     "master": 1.0, "radio": 0.2, "ducking": 0.0, "voice": 0.3,
                     "compression": {"threshold": -20.0, "ratio": 4.0, "attack": 5.0, "release": 50.0}
                 },
-                "radio": {"directory": "./radio_files", "interval": 30.0},
+                "radio": {"playlist": "RMF_FM.pls", "interval": 30.0},
                 "distortion_simulation": {
                     "enabled": False, "sample_rate": 32000, "distortion": 0.0002, "filter_low": 200,
                     "filter_high": 4000, "noise_level": 0.0001, "bit_depth": 16, "crackle": 0.0002
@@ -174,3 +174,4 @@ class RemoveResponse(BaseModel):
 class SchedulerStatusResponse(BaseModel):
     """Response model for scheduler status."""
     is_running: bool = Field(..., description="True if the scheduler background task is active, False otherwise.", example=True)
+
