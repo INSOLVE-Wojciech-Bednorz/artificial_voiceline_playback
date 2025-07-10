@@ -663,10 +663,14 @@ class VoiceSystem:
             if not self.radio_player:
                 raise vlc.VLCException("Failed to create VLC media player.")
 
-            # Load media file (modified from original)
+            # Load media file with automatic looping
             media = self._vlc_instance.media_new(str(track))
             if not media:
                 raise vlc.VLCException(f"Failed to create VLC media from file: {track}")
+            
+            # ONLY ADDITION: This one line fixes the state issue
+            media.add_option('input-repeat=65535')  # Prevents automatic stop
+            
             self.radio_player.set_media(media)
             media.release()
 
@@ -685,7 +689,9 @@ class VoiceSystem:
 
             logger.info(f"Radio started playing MP3: {track.name}")
             
-            # Modified success return (no state checks, just immediate success)
+            # Give it a moment to start before voice line interrupts
+            time.sleep(0.3)  # Small delay for state stabilization
+            
             return True, f"Radio uruchomione: {track.name}"
 
         except vlc.VLCException as e:
@@ -700,6 +706,7 @@ class VoiceSystem:
             if self.radio_player: self.radio_player.release()
             self.radio_player = None
             return False, self.last_error
+
 
 
 
