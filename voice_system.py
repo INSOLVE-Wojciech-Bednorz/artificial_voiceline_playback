@@ -630,29 +630,26 @@ class VoiceSystem:
             return None, self.last_error
 
     def start_radio(self) -> Tuple[bool, str]:
-        """Starts the radio stream playback."""
+        """Starts a single random MP3 track playback."""
         if not self._vlc_instance:
-             msg = "Nie można uruchomić radia: Instancja VLC nie jest dostępna."
-             logger.error(msg)
-             return False, msg
+            msg = "Nie można uruchomić radia: Instancja VLC nie jest dostępna."
+            logger.error(msg)
+            return False, msg
 
+        # Clean up any existing player (keeping original cleanup logic)
         if self.radio_player:
-             try:
-                  player_state = self.radio_player.get_state()
-                  if player_state in [vlc.State.Playing, vlc.State.Buffering]:
-                       logger.info("Radio already playing or buffering.")
-                       return True, "Radio już gra lub buforuje."
-                  else:
-                       logger.info(f"Radio player exists but state is {player_state}. Releasing and creating new player.")
-                       self.radio_player.release()
-                       self.radio_player = None
-             except Exception as e:
-                  logger.warning(f"Could not get state of existing player: {e}. Releasing and creating new player.")
-                  if self.radio_player: self.radio_player.release()
-                  self.radio_player = None
+            try:
+                player_state = self.radio_player.get_state()
+                if player_state in [vlc.State.Playing, vlc.State.Buffering]:
+                    logger.info("Stopping existing radio playback.")
+                    self.radio_player.stop()
+                self.radio_player.release()
+                self.radio_player = None
+            except Exception as e:
+                logger.warning(f"Error cleaning up existing player: {e}")
+                self.radio_player = None
 
-
-        # CHANGED: Get random MP3 instead of stream URL
+        # Get random MP3 track (using existing _get_playlist_track)
         track = self._get_playlist_track()
         if not track:
             msg = "Nie można uruchomić radia: brak plików MP3 w folderze."
@@ -661,22 +658,23 @@ class VoiceSystem:
             return False, msg
 
         try:
+            # Create new player (keeping original structure)
             self.radio_player = self._vlc_instance.media_player_new()
             if not self.radio_player:
                 raise vlc.VLCException("Failed to create VLC media player.")
 
-            # CHANGED: Load local file instead of stream
+            # Load media file (modified from original)
             media = self._vlc_instance.media_new(str(track))
             if not media:
                 raise vlc.VLCException(f"Failed to create VLC media from file: {track}")
-
-            # REMOVED: No network caching options needed
             self.radio_player.set_media(media)
             media.release()
 
+            # Volume control (keeping original)
             initial_volume = max(0, min(100, int(self.config['volumes']['radio'] * 100)))
             self.radio_player.audio_set_volume(initial_volume)
 
+            # Start playback (keeping original error handling)
             if self.radio_player.play() == -1:
                 error_msg = "VLC player.play() returned -1. Nie można uruchomić odtwarzania."
                 logger.error(error_msg)
@@ -686,6 +684,8 @@ class VoiceSystem:
                 return False, error_msg
 
             logger.info(f"Radio started playing MP3: {track.name}")
+            
+            # Modified success return (no state checks, just immediate success)
             return True, f"Radio uruchomione: {track.name}"
 
         except vlc.VLCException as e:
@@ -700,6 +700,7 @@ class VoiceSystem:
             if self.radio_player: self.radio_player.release()
             self.radio_player = None
             return False, self.last_error
+
 
 
     def stop_radio(self) -> Tuple[bool, str]:
