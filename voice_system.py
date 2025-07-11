@@ -512,9 +512,10 @@ class VoiceSystem:
 
         steps = max(1, int(duration * 20)) # ~20 steps per second
         step_time = duration / steps
+        master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
         # Ensure volumes are within 0-100 for VLC
-        start_vlc = max(0, min(100, int(start_vol * 100)))
-        end_vlc = max(0, min(100, int(end_vol * 100)))
+        start_vlc = max(0, min(100, int(start_vol * master_vol * 100)))
+        end_vlc = max(0, min(100, int(end_vol * master_vol * 100)))
         delta = (end_vlc - start_vlc) / steps
 
         logger.debug(f"Fading radio volume from {start_vlc} to {end_vlc} over {duration}s ({steps} steps)")
@@ -716,9 +717,11 @@ class VoiceSystem:
         try:
             self.radio_player = self._vlc_instance.media_player_new()
             if not self.radio_player:
-                raise vlc.VLCException("Failed to create VLC media player.")
+                 raise vlc.VLCException("Failed to create VLC media player.")
 
-            initial_volume = max(0, min(100, int(self.config['volumes']['radio'] * 100)))
+            master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
+            radio_vol = float(self.config['volumes']['radio'])
+            initial_volume = max(0, min(100, int(radio_vol * master_vol * 100)))
             self.radio_player.audio_set_volume(initial_volume)
 
             # Start the playback management thread
@@ -1250,7 +1253,8 @@ class VoiceSystem:
 
             # Apply volume change immediately if radio is playing and VLC is available
             if self._vlc_instance and self.radio_player and self.radio_player.is_playing():
-                 new_vol_int = max(0, min(100, int(self.radio_volume * 100)))
+                 master_vol = float(_get_nested_value(self.config, ['volumes', 'master'], 1.0))
+                 new_vol_int = max(0, min(100, int(self.radio_volume * master_vol * 100)))
                  ret = self.radio_player.audio_set_volume(new_vol_int)
                  if ret == 0:
                       logger.info(f"Applied new radio volume ({new_vol_int}) to playing stream.")
