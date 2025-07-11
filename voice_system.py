@@ -241,14 +241,17 @@ class VoiceSystem:
         self._scheduler_thread = None
         self._stop_scheduler_event = threading.Event()
         self._scheduler_running = False
+        self._radio_playback_thread = None
+        self._stop_radio_playback_event = threading.Event()
         try:
             # Initialize VLC instance once with options for headless/quiet operation
-            self._vlc_instance = vlc.Instance('--no-xlib')
+            self._vlc_instance = vlc.Instance('--no-xlib --quiet')
             logger.info("VLC instance initialized.")
         except Exception as e:
             logger.critical(f"Failed to initialize VLC instance: {e}. Radio functionality will be disabled.", exc_info=True)
             self._vlc_instance = None
             self.last_error = f"Błąd inicjalizacji VLC: {e}"
+
 
     def _load_config(self) -> Dict:
         """Loads config from YAML, merges with defaults, handles errors."""
@@ -408,17 +411,6 @@ class VoiceSystem:
         except Exception as e:
              logger.error(f"Unexpected error saving lines: {e}", exc_info=True)
              self.last_error = f"Nieoczekiwany błąd zapisu linii: {str(e)}"
-
-    def _get_playlist_track(self) -> Optional[Path]:
-        """Get random MP3 from playlist folder"""
-        if not hasattr(self, '_cached_tracks'):
-            pl_path = Path(self.config['radio']['playlist'])
-            self._cached_tracks = list(pl_path.glob('*.mp3')) if pl_path.is_dir() else []
-        
-        if not self._cached_tracks:
-            return None
-        
-        return random.choice(self._cached_tracks)
 
     def _parse_playlist(self, path_str: Optional[str]) -> List[str]:
         """Parses M3U or PLS playlist files to extract stream URLs."""
@@ -629,70 +621,117 @@ class VoiceSystem:
             logger.error(f"{self.last_error}", exc_info=True)
             return None, self.last_error
 
+    def _radio_playback_loop(self):
+        """
+        A daemon thread loop that continuously plays random MP3s from a directory.
+        """
+        logger.info("Radio playback thread started.")
+        playlist_path_str = _get_nested_value(self.config, ['radio', 'playlist'])
+        if not playlist_path_str:
+            logger.error("Radio playlist path is not configured. Radio thread exiting.")
+            return
+
+        playlist_path = Path(playlist_path_str)
+        if not playlist_path.is_dir():
+            logger.error(f"Radio playlist path is not a valid directory: '{playlist_path_str}'. Radio thread exiting.")
+            return
+
+        try:
+            mp3_files = list(playlist_path.glob('*.mp3'))
+            if not mp3_files:
+                logger.warning(f"No .mp3 files found in directory: '{playlist_path}'. Radio thread exiting.")
+                return
+
+            logger.info(f"Found {len(mp3_files)} MP3 files for radio playback.")
+
+            while not self._stop_radio_playback_event.is_set():
+                random.shuffle(mp3_files)
+                for mp3_file in mp3_files:
+                    if self._stop_radio_playback_event.is_set():
+                        break
+
+                    logger.info(f"Radio now playing: {mp3_file}")
+                    media = self._vlc_instance.media_new(str(mp3_file))
+                    if not media:
+                        logger.warning(f"Could not create VLC media from file: {mp3_file}")
+                        continue
+
+                    self.radio_player.set_media(media)
+                    media.release()
+
+                    if self.radio_player.play() == -1:
+                        logger.error(f"Failed to play radio file: {mp3_file}")
+                        continue
+
+                    # Wait for playback to actually start before checking the state
+                    time.sleep(1)
+
+                    # Wait for the song to finish, while periodically checking the stop event
+                    while self.radio_player.get_state() in [vlc.State.Playing, vlc.State.Buffering]:
+                        if self._stop_radio_playback_event.wait(timeout=0.5):
+                            break  # Stop event was set
+
+                    # Explicitly stop the player at the end of a song or if interrupted
+                    if self.radio_player.is_playing():
+                        self.radio_player.stop()
+
+                if self._stop_radio_playback_event.is_set():
+                    logger.info("Radio playback loop interrupted by stop signal.")
+                    break  # Exit the main while loop
+
+        except Exception as e:
+            logger.error(f"Critical error in radio playback loop: {e}", exc_info=True)
+        finally:
+            if self.radio_player and self.radio_player.is_playing():
+                self.radio_player.stop()
+            logger.info("Radio playback thread finished.")
+
     def start_radio(self) -> Tuple[bool, str]:
-        """Starts a single random MP3 track playback."""
+        """Starts local MP3 radio playback in a background thread."""
         if not self._vlc_instance:
             msg = "Nie można uruchomić radia: Instancja VLC nie jest dostępna."
             logger.error(msg)
             return False, msg
 
-        # Clean up any existing player (keeping original cleanup logic)
+        # If the playback thread is already running, do nothing.
+        if self._radio_playback_thread and self._radio_playback_thread.is_alive():
+            logger.info("Radio playback thread is already running.")
+            return True, "Radio już gra."
+
+        # If player exists from a previous run, release it.
         if self.radio_player:
             try:
-                player_state = self.radio_player.get_state()
-                if player_state in [vlc.State.Playing, vlc.State.Buffering]:
-                    logger.info("Stopping existing radio playback.")
-                    self.radio_player.stop()
                 self.radio_player.release()
-                self.radio_player = None
-            except Exception as e:
-                logger.warning(f"Error cleaning up existing player: {e}")
-                self.radio_player = None
+            except Exception:
+                pass  # Ignore errors on release
+            self.radio_player = None
 
-        # Get random MP3 track (using existing _get_playlist_track)
-        track = self._get_playlist_track()
-        if not track:
-            msg = "Nie można uruchomić radia: brak plików MP3 w folderze."
+        playlist_path = _get_nested_value(self.config, ['radio', 'playlist'])
+        if not playlist_path or not Path(playlist_path).is_dir():
+            msg = f"Nie można uruchomić radia: ścieżka '{playlist_path}' nie jest prawidłowym katalogiem."
             logger.warning(msg)
             self.last_error = msg
             return False, msg
 
         try:
-            # Create new player (keeping original structure)
             self.radio_player = self._vlc_instance.media_player_new()
             if not self.radio_player:
                 raise vlc.VLCException("Failed to create VLC media player.")
 
-            # Load media file with automatic looping
-            media = self._vlc_instance.media_new(str(track))
-            if not media:
-                raise vlc.VLCException(f"Failed to create VLC media from file: {track}")
-            
-            # ONLY ADDITION: This one line fixes the state issue
-            media.add_option('input-repeat=65535')  # Prevents automatic stop
-            
-            self.radio_player.set_media(media)
-            media.release()
-
-            # Volume control (keeping original)
             initial_volume = max(0, min(100, int(self.config['volumes']['radio'] * 100)))
             self.radio_player.audio_set_volume(initial_volume)
 
-            # Start playback (keeping original error handling)
-            if self.radio_player.play() == -1:
-                error_msg = "VLC player.play() returned -1. Nie można uruchomić odtwarzania."
-                logger.error(error_msg)
-                self.last_error = error_msg
-                if self.radio_player: self.radio_player.release()
-                self.radio_player = None
-                return False, error_msg
+            # Start the playback management thread
+            self._stop_radio_playback_event.clear()
+            self._radio_playback_thread = threading.Thread(
+                target=self._radio_playback_loop,
+                name="RadioPlaybackLoop",
+                daemon=True
+            )
+            self._radio_playback_thread.start()
 
-            logger.info(f"Radio started playing MP3: {track.name}")
-            
-            # Give it a moment to start before voice line interrupts
-            time.sleep(0.3)  # Small delay for state stabilization
-            
-            return True, f"Radio uruchomione: {track.name}"
+            logger.info("Radio playback thread started.")
+            return True, "Radio uruchomione (odtwarzanie lokalnych plików)."
 
         except vlc.VLCException as e:
             self.last_error = f"Błąd VLC podczas uruchamiania radia: {str(e)}"
@@ -708,27 +747,34 @@ class VoiceSystem:
             return False, self.last_error
 
 
-
-
     def stop_radio(self) -> Tuple[bool, str]:
-        """Stops the radio stream playback."""
+        """Stops the radio playback thread and releases the player."""
+        # Signal the playback thread to stop
+        if self._radio_playback_thread and self._radio_playback_thread.is_alive():
+            logger.info("Sending stop signal to radio playback thread...")
+            self._stop_radio_playback_event.set()
+            self._radio_playback_thread.join(timeout=5)  # Wait for thread to finish
+            if self._radio_playback_thread.is_alive():
+                logger.warning("Radio playback thread did not stop within timeout.")
+            else:
+                logger.info("Radio playback thread stopped successfully.")
+        else:
+            logger.info("Stop radio: Playback thread was not running.")
+
+        self._radio_playback_thread = None
+        self._stop_radio_playback_event.clear()
+
+        # Stop and release the player instance itself
         if not self.radio_player:
-            logger.info("Stop radio: Player instance does not exist.")
-            return True, "Radio nie było uruchomione."
+            logger.info("Stop radio: Player instance does not exist or was already released.")
+            return True, "Radio nie było uruchomione lub zostało już zatrzymane."
 
         try:
-            player_state = self.radio_player.get_state()
-            logger.info(f"Stop radio: Current player state is {player_state}")
-            if player_state != vlc.State.Stopped and player_state != vlc.State.Ended and player_state != vlc.State.Error:
-                if self.radio_player.is_playing(): # Check this as well
-                     self.radio_player.stop()
-                     logger.info("Radio stop() called.")
-                     # Give it a moment to actually stop
-                     time.sleep(0.5)
-            else:
-                 logger.info("Radio already stopped or in ended/error state.")
+            # The player might be stopped by the thread, but we ensure it here.
+            if self.radio_player.is_playing():
+                self.radio_player.stop()
+                time.sleep(0.5)
 
-            # Always release the player resources
             self.radio_player.release()
             self.radio_player = None
             logger.info("Radio player released.")
@@ -736,8 +782,7 @@ class VoiceSystem:
         except Exception as e:
             self.last_error = f"Błąd podczas zatrzymywania radia VLC: {str(e)}"
             logger.error(self.last_error, exc_info=True)
-            # Ensure player is cleared even on error during stop/release
-            self.radio_player = None
+            self.radio_player = None  # Ensure player is cleared
             return False, self.last_error
 
 
@@ -852,20 +897,16 @@ class VoiceSystem:
                     line_text = line_to_play.get('text', '')[:50]
                     logger.info(f"Scheduler selected line ID {line_id}: '{line_text}...'")
 
-                    # Ensure radio is still playing, try restarting if not
+                    # Ensure radio playback thread is running, try restarting if not
                     if self._vlc_instance: # Only manage radio if VLC is available
-                        radio_state = vlc.State.Error # Default to error if check fails
-                        try:
-                            if self.radio_player:
-                                radio_state = self.radio_player.get_state()
-                        except Exception as state_e:
-                             logger.warning(f"Could not get radio state before playing line: {state_e}")
-
-                        if radio_state not in [vlc.State.Playing, vlc.State.Buffering]:
-                             logger.warning(f"Radio not playing (state: {radio_state}) before playing line. Attempting restart...")
-                             self.start_radio()
-                             # Give it a moment to connect before ducking/playing
-                             time.sleep(2)
+                        if not self._radio_playback_thread or not self._radio_playback_thread.is_alive():
+                            logger.warning("Radio playback thread is not running. Attempting to start it via scheduler.")
+                            radio_restarted, msg = self.start_radio()
+                            if radio_restarted:
+                                logger.info("Radio thread restarted by scheduler.")
+                                time.sleep(2) # Give it a moment to pick a song and start
+                            else:
+                                logger.error(f"Scheduler failed to restart radio thread: {msg}")
 
 
                     # Play the selected line
