@@ -36,7 +36,7 @@ const AddVoiceLineModal: React.FC<AddVoiceLineModalProps> = ({
       onVoiceLineAdded();
       // Then close the modal
       handleClose();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Błąd podczas dodawania linii głosowej:', err);
       // Use centralized error formatting
       setError(formatApiError(err));

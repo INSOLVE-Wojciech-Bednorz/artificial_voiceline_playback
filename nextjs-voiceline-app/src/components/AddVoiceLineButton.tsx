@@ -5,13 +5,6 @@ interface AddVoiceLineButtonProps {
   onVoiceLineAdded?: () => void;
 }
 
-interface VoiceLine {
-  id: number;
-  text: string;
-  active: boolean;
-  filename: string;
-}
-
 const AddVoiceLineButton = forwardRef<{handleOpenModal: () => void}, AddVoiceLineButtonProps>(({ onVoiceLineAdded }, ref) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [text, setText] = useState('');
@@ -51,10 +44,15 @@ const AddVoiceLineButton = forwardRef<{handleOpenModal: () => void}, AddVoiceLin
         onVoiceLineAdded();
       }
       handleCloseModal();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error adding voice line:', err);
-      if (err.response?.data?.detail) {
-        setError(err.response.data.detail);
+      if (err instanceof Error && 'response' in err) {
+        const axiosErr = err as { response?: { data?: { detail?: string } } };
+        if (axiosErr.response?.data?.detail) {
+          setError(axiosErr.response.data.detail);
+        } else {
+          setError("Failed to add voice line. Please try again.");
+        }
       } else {
         setError("Failed to add voice line. Please try again.");
       }

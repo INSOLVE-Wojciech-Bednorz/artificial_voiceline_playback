@@ -54,6 +54,7 @@ interface VolumeSettingsType {
 interface RadioSettingsType {
   station_url: string; // Zmieniono wartość pole zgodnie z backendem
   is_playing: boolean; // Dodano pole zgodnie z backendem
+  interval?: number; // Dodano dla zgodności z API
 }
 
 interface SchedulerSettingsType {
@@ -237,7 +238,7 @@ const SettingsManager = () => {
     setSettings({
       ...settings,
       [section]: {
-        ...settings[section],
+        ...(settings[section] as Record<string, any>),
         [field]: value
       }
     });

@@ -118,7 +118,7 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
         </thead>
 
         <tbody className="divide-y divide-gray-200/60 bg-white/50">
-          {lines.map((line, index) => (
+          {lines.map((line) => (
             <tr key={line.id} className="hover:bg-blue-50/30 hover:shadow-sm group transition-all duration-200 border-l-4 border-transparent hover:border-blue-400/30">
               <td className="whitespace-nowrap">
                 <div className="ps-6 py-3">
@@ -140,13 +140,12 @@ const VoiceLineTable: React.FC<VoiceLineTableProps> = ({
                   className="ps-6 lg:ps-3 xl:ps-0 pe-6 py-3 cursor-pointer"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // Toggle the checkbox for this line
-                    const checkbox = document.getElementById(`checkbox-${line.id}`) as HTMLInputElement;
-                    if (checkbox) {
-                      checkbox.checked = !checkbox.checked;
-                      const event = new Event('change', { bubbles: true });
-                      checkbox.dispatchEvent(event);
-                    }
+                    // Create a synthetic event and call the toggle function directly
+                    const syntheticEvent = {
+                      target: { checked: !selectedIds.includes(line.id) },
+                      stopPropagation: () => {},
+                    } as React.ChangeEvent<HTMLInputElement>;
+                    onToggleSelect(line.id, syntheticEvent);
                   }}
                 >
                   <span className="text-sm font-medium text-gray-800 group-hover:text-blue-700 transition-colors duration-200">{line.id}</span>

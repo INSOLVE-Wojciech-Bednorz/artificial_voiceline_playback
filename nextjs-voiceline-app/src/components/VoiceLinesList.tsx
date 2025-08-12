@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppContext, VoiceLine } from '../utils/context/AppContext';
 import { useConnectionContext } from '../utils/context/ConnectionContext';
 import VoiceLineTable from './VoiceLineTable';
@@ -24,7 +24,7 @@ const VoiceLinesList: React.FC = () => {
   } = useAppContext();
   
   // Access connection status
-  const { isConnected, isChecking, retryConnection } = useConnectionContext();
+  const { isConnected, isChecking, lastError, lastChecked, diagnostics, retryCount, retryConnection, getDetailedDiagnostics } = useConnectionContext();
 
   // Local state
   const [filteredLines, setFilteredLines] = useState<VoiceLine[]>([]);
@@ -82,7 +82,23 @@ const VoiceLinesList: React.FC = () => {
     }
 
     setFilteredLines(result);
+    
+    // Update selections to only include items that are still visible
+    setSelectedIds(prev => {
+      const visibleIds = result.map(line => line.id);
+      return prev.filter(id => visibleIds.includes(id));
+    });
   }, [voiceLines, searchQuery, activeFilter, sortField, sortDirection]);
+
+  // Update selectAll state when selectedIds or filteredLines change
+  useEffect(() => {
+    if (filteredLines.length === 0) {
+      setSelectAll(false);
+    } else {
+      const allVisible = filteredLines.every(line => selectedIds.includes(line.id));
+      setSelectAll(allVisible);
+    }
+  }, [selectedIds, filteredLines]);
 
   // Handle search input change
   const handleSearch = (query: string) => {
@@ -162,7 +178,12 @@ const VoiceLinesList: React.FC = () => {
             if (connected) {
               refreshVoiceLines();
             }
-          }} 
+          }}
+          lastError={lastError}
+          lastChecked={lastChecked}
+          diagnostics={diagnostics}
+          retryCount={retryCount}
+          onGetDetailedDiagnostics={getDetailedDiagnostics}
         />
       </div>
     );
