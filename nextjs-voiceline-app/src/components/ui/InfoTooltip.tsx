@@ -15,8 +15,7 @@ interface InfoTooltipProps {
 const InfoTooltip: React.FC<InfoTooltipProps> = ({ 
   content, 
   position = 'top',
-  iconSize = 'sm',
-  zIndex = 9999
+  iconSize = 'sm'
 }) => {
   // Convert position to Placement type
   const mappedPosition: Placement = position as Placement;

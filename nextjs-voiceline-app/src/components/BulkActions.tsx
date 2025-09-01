@@ -31,9 +31,14 @@ const BulkActions: React.FC<BulkActionsProps> = ({
       });
       
       onActionComplete();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error(`Error while changing line status to ${state ? 'active' : 'inactive'}:`, err);
-      setError(err.response?.data?.detail || 'Failed to update voice lines');
+      if (err instanceof Error && 'response' in err) {
+        const axiosErr = err as { response?: { data?: { detail?: string } } };
+        setError(axiosErr.response?.data?.detail || 'Failed to update voice lines');
+      } else {
+        setError('Failed to update voice lines');
+      }
     } finally {
       setLoading(false);
     }
@@ -59,9 +64,14 @@ const BulkActions: React.FC<BulkActionsProps> = ({
       
       setShowConfirmation(false);
       onActionComplete();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error while deleting lines:', err);
-      setError(err.response?.data?.detail || 'Failed to delete voice lines');
+      if (err instanceof Error && 'response' in err) {
+        const axiosErr = err as { response?: { data?: { detail?: string } } };
+        setError(axiosErr.response?.data?.detail || 'Failed to delete voice lines');
+      } else {
+        setError('Failed to delete voice lines');
+      }
     } finally {
       setLoading(false);
     }
