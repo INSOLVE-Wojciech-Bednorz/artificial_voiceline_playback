@@ -18,7 +18,7 @@ from voice_system import VoiceSystem, DEFAULT_CONFIG, _get_nested_value, AUDIO_D
 from fastapi.staticfiles import StaticFiles
 # Import StaticFiles to serve static content (CSS, JS, images) via HTTP endpoints in FastAPI
 
-HOST_IP_ORIGIN = "CHANGE_ME"
+HOST_IP_ORIGIN = "172.21.112.61"
 
 
 # --- Logging Setup ---
