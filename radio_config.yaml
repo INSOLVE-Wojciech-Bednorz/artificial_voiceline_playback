@@ -1,0 +1,7 @@
+radio:
+  interval: 300
+  shuffle: true
+volumes:
+  ducking: 0.2
+  master: 1.0
+  radio: 0.5
