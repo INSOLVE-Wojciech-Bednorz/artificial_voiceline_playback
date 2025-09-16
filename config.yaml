@@ -17,7 +17,7 @@ volumes:
     attack: 5.0
     release: 50.0
 radio:
-  playlist: RMF_FM.pls
+  playlist: radio_files
   interval: 300
 distortion_simulation:
   enabled: False
