@@ -14,7 +14,7 @@ Program tworzący, zarządzający i odtwarzający linie głosowe wraz z radiem.
    ```bash
    python3 -m venv venv
    source venv/bin/activate
-````
+   ```
 
 6. Zainstaluj wymagane pakiety:
 
@@ -22,7 +22,7 @@ Program tworzący, zarządzający i odtwarzający linie głosowe wraz z radiem.
    pip install -r requirements.txt
    ```
 
-7. Uruchom aplikację:
+7. Uruchom FastAPI:
 
    ```bash
    python main.py
@@ -30,7 +30,7 @@ Program tworzący, zarządzający i odtwarzający linie głosowe wraz z radiem.
 
 ---
 
-## Uruchomienie FastAPI
+## Uruchomienie strony
 
 W osobnym terminalu:
 
