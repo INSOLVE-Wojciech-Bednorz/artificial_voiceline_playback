@@ -22,15 +22,14 @@ Program tworzący, zarządzający i odtwarzający linie głosowe wraz z radiem.
    pip install -r requirements.txt
    ```
 
-7. Uruchom FastAPI:
+---
+
+## Uruchomienie strony
+Uruchom FastAPI:
 
    ```bash
    python main.py
    ```
-
----
-
-## Uruchomienie strony
 
 W osobnym terminalu:
 
